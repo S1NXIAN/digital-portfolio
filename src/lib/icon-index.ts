@@ -50,6 +50,27 @@ interface SimpleIconLike {
 let siCache: IconResult[] | null = null;
 let siBySlug: Map<string, SimpleIconLike> | null = null;
 
+/** Relative luminance (0–1, gamma-free approximation) of a 6-digit hex. */
+function hexLuminance(hex: string): number {
+  const r = parseInt(hex.slice(0, 2), 16) / 255;
+  const g = parseInt(hex.slice(2, 4), 16) / 255;
+  const b = parseInt(hex.slice(4, 6), 16) / 255;
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/**
+ * Simple Icons ship without a fill (renders black by default — invisible on
+ * the dark theme). Bake the brand hex in; near-black brands get lifted to a
+ * light neutral so GitHub/Apple-style marks stay visible.
+ */
+function colorize(icon: SimpleIconLike): string {
+  if (/^[0-9a-fA-F]{6}$/.test(icon.hex)) {
+    const fill = hexLuminance(icon.hex) < 0.16 ? "#e8e8e8" : `#${icon.hex}`;
+    return icon.svg.replace(/<svg /i, `<svg fill="${fill}" `);
+  }
+  return icon.svg;
+}
+
 function loadSimpleIcons(): { list: IconResult[]; bySlug: Map<string, SimpleIconLike> } {
   if (siCache && siBySlug) return { list: siCache, bySlug: siBySlug };
   const list: IconResult[] = [];
@@ -75,7 +96,7 @@ function loadSimpleIcons(): { list: IconResult[]; bySlug: Map<string, SimpleIcon
         name: entry.title,
         source: "simple",
         slug: entry.slug,
-        url: `/api/icons/simple/${entry.slug}`,
+        url: `/api/icons/simple/v2/${entry.slug}`,
         hex: entry.hex,
       });
     }
@@ -87,7 +108,8 @@ function loadSimpleIcons(): { list: IconResult[]; bySlug: Map<string, SimpleIcon
 
 export function getSimpleIconSvg(slug: string): string | null {
   const { bySlug } = loadSimpleIcons();
-  return bySlug.get(slug.toLowerCase())?.svg ?? null;
+  const icon = bySlug.get(slug.toLowerCase());
+  return icon ? colorize(icon) : null;
 }
 
 async function loadDashboardIcons(): Promise<DiEntry[]> {

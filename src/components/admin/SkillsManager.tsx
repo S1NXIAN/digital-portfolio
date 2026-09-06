@@ -335,10 +335,10 @@ export default function SkillsManager() {
               htmlFor="skill-icon"
               hint={
                 icon.trim() === ""
-                  ? "Empty = auto-match from the name (dashboardicons.com → simpleicons.org)."
+                  ? "Empty = auto-match from the name (simple-icons → dashboardicons)."
                   : isCustomIconUrl(icon)
                     ? "Custom icon URL — used as-is."
-                    : "dashboardicons.com slug."
+                    : "Icon slug (simple-icons or dashboardicons) — the other provider is tried automatically."
               }
             >
               <div className="flex items-center gap-2">

@@ -1,13 +1,18 @@
 /**
  * Shared (client-safe) skill icon resolution.
  *
- * Priority:
- *   1. Explicit custom URL ("https://…", "http://…", "data:image/…") → used verbatim
- *   2. Explicit dashboardicons.com slug → jsDelivr CDN svg
- *   3. Auto-match from the skill name via a curated alias map (verified slugs),
- *      falling back to a direct kebab-case dashboard-icons slug guess.
+ * Resolution produces a CANDIDATE LIST — <StackIcon> walks it and falls
+ * through on 404/load errors, ending in a letter chip only when every
+ * provider misses:
+ *   1. Explicit custom URL ("https://…", "data:image/…", "/…") → used verbatim
+ *   2. Curated alias (verified, brand-correct icon)
+ *   3. Simple Icons — bundled locally (3,400+ tech brands), served
+ *      brand-colored from /api/icons/simple/v2/[slug]. Covers dev-tool
+ *      brands dashboard-icons lacks (tailwindcss, react, langchain,
+ *      googlegemini, githubactions, shadcnui, gnubash, …)
+ *   4. Dashboard Icons — jsDelivr CDN (infrastructure logos Simple Icons drops)
  *
- * Anything that fails to load is handled by <StackIcon>'s letter-chip fallback.
+ * An empty icon auto-matches from the skill name.
  */
 
 export const DI_CDN_BASE =
@@ -15,65 +20,11 @@ export const DI_CDN_BASE =
 
 const di = (slug: string) => `${DI_CDN_BASE}/${slug}.svg`;
 /** Simple Icons are served from our own cached API route (no third-party CDN blocking). */
-const si = (slug: string) => `/api/icons/simple/${slug}`;
+const si = (slug: string) => `/api/icons/simple/v2/${slug}`;
 
-/** normalized name → verified icon URL */
+/** normalized name/slug → verified icon URL */
 const ALIASES: Record<string, string> = {
-  // ——— Dashboard Icons (jsDelivr CDN) ———
-  javascript: di("javascript"),
-  js: di("javascript"),
-  typescript: di("typescript"),
-  ts: di("typescript"),
-  python: di("python"),
-  node: di("nodejs"),
-  nodejs: di("nodejs"),
-  postgres: di("postgresql"),
-  postgresql: di("postgresql"),
-  psql: di("postgresql"),
-  redis: di("redis"),
-  docker: di("docker"),
-  aws: di("aws"),
-  amazonwebservices: di("aws"),
-  amazonwebserviceslight: di("aws"),
-  git: di("git"),
-  github: di("github"),
-  gitlab: di("gitlab"),
-  nextjs: di("nextjs"),
-  next: di("nextjs"),
-  vercel: di("vercel"),
-  nginx: di("nginx"),
-  kubernetes: di("kubernetes"),
-  k8s: di("kubernetes"),
-  terraform: di("terraform"),
-  mongo: di("mongodb"),
-  mongodb: di("mongodb"),
-  mysql: di("mysql"),
-  firebase: di("firebase"),
-  supabase: di("supabase"),
-  golang: di("go"),
-  go: di("go"),
-  rust: di("rust"),
-  php: di("php"),
-  java: di("java"),
-  kotlin: di("kotlin"),
-  swift: di("swift"),
-  dart: di("dart"),
-  svelte: di("svelte"),
-  vite: di("vite"),
-  vitest: di("vitest"),
-  grafana: di("grafana"),
-  prometheus: di("prometheus"),
-  linux: di("linux"),
-  laravel: di("laravel"),
-  rabbitmq: di("rabbitmq"),
-  elasticsearch: di("elasticsearch"),
-  jenkins: di("jenkins"),
-  figma: di("figma"),
-  cloudflare: di("cloudflare"),
-  netlify: di("netlify"),
-  openai: di("openai"),
-  deno: di("deno"),
-  // ——— Simple Icons (brand-colored CDN) ———
+  // ——— Simple Icons (bundled, brand-colored) ———
   react: si("react"),
   reactjs: si("react"),
   tailwind: si("tailwindcss"),
@@ -115,6 +66,94 @@ const ALIASES: Record<string, string> = {
   cicd: si("githubactions"),
   githubactions: si("githubactions"),
   actions: si("githubactions"),
+  anthropic: si("anthropic"),
+  claude: si("anthropic"),
+  googlegemini: si("googlegemini"),
+  gemini: si("googlegemini"),
+  langchain: si("langchain"),
+  langgraph: si("langchain"),
+  ollama: si("ollama"),
+  shadcn: si("shadcnui"),
+  shadcnui: si("shadcnui"),
+  tanstack: si("tanstack"),
+  tanstackquery: si("reactquery"),
+  reactquery: si("reactquery"),
+  pytorch: si("pytorch"),
+  tensorflow: si("tensorflow"),
+  huggingface: si("huggingface"),
+  hf: si("huggingface"),
+  mongodb: si("mongodb"),
+  mongo: si("mongodb"),
+  redis: si("redis"),
+  kubernetes: si("kubernetes"),
+  k8s: si("kubernetes"),
+  grafana: si("grafana"),
+  prometheus: si("prometheus"),
+  cloudflare: si("cloudflare"),
+  openrouter: si("openrouter"),
+  pino: si("pino"),
+  zod: si("zod"),
+  eslint: si("eslint"),
+  prettier: si("prettier"),
+  vitest: si("vitest"),
+  puppeteer: si("puppeteer"),
+  cypress: si("cypress"),
+  storybook: si("storybook"),
+  webpack: si("webpack"),
+  rollup: si("rollupdotjs"),
+  esbuild: si("esbuild"),
+  npm: si("npm"),
+  pnpm: si("pnpm"),
+  yarn: si("yarn"),
+  websocket: si("socketdotio"),
+  webrtc: si("webrtc"),
+  bash: si("gnubash"),
+  nvidia: si("nvidia"),
+  // ——— Dashboard Icons (jsDelivr CDN) — brands Simple Icons drops or styles poorly ———
+  javascript: di("javascript"),
+  js: di("javascript"),
+  typescript: di("typescript"),
+  ts: di("typescript"),
+  python: di("python"),
+  node: di("nodejs"),
+  nodejs: di("nodejs"),
+  postgres: di("postgresql"),
+  postgresql: di("postgresql"),
+  psql: di("postgresql"),
+  docker: di("docker"),
+  aws: di("aws"),
+  amazonwebservices: di("aws"),
+  git: di("git"),
+  github: di("github"),
+  gitlab: di("gitlab"),
+  nextjs: di("nextjs"),
+  next: di("nextjs"),
+  nextdotjs: di("nextjs"),
+  vercel: di("vercel"),
+  nginx: di("nginx"),
+  terraform: di("terraform"),
+  mysql: di("mysql"),
+  firebase: di("firebase"),
+  supabase: di("supabase"),
+  golang: di("go"),
+  go: di("go"),
+  rust: di("rust"),
+  php: di("php"),
+  java: di("java"),
+  kotlin: di("kotlin"),
+  swift: di("swift"),
+  dart: di("dart"),
+  svelte: di("svelte"),
+  vite: di("vite"),
+  laravel: di("laravel"),
+  rabbitmq: di("rabbitmq"),
+  elasticsearch: di("elasticsearch"),
+  jenkins: di("jenkins"),
+  figma: di("figma"),
+  netlify: di("netlify"),
+  openai: di("openai"),
+  chatgpt: di("openai"),
+  deno: di("deno"),
 };
 
 /** "JavaScript (ES2024)" → "javascript" · "Node.js" → "nodejs" · "CI/CD" → "cicd" */
@@ -129,39 +168,54 @@ export function isCustomIconUrl(value: string): boolean {
   return /^(https?:\/\/|data:image\/)/i.test(value.trim()) || value.trim().startsWith("/");
 }
 
+const push = (list: string[], url: string | null | undefined) => {
+  if (url && !list.includes(url)) list.push(url);
+};
+
 /**
- * Resolve the image URL for a stack item.
+ * Resolve the ordered image-URL candidates for a stack item.
  * @param name   Skill name, e.g. "Prisma ORM"
- * @param icon   Explicit icon value: "" | URL | dashboardicons slug
- * @returns image URL, or null when nothing sensible can be guessed
+ * @param icon   Explicit icon value: "" | URL | simple-icons/dashboardicons slug
  */
-export function resolveStackIcon(name: string, icon?: string): string | null {
+export function resolveStackIconCandidates(name: string, icon?: string): string[] {
   const value = (icon ?? "").trim();
+  const list: string[] = [];
 
   if (value) {
-    if (isCustomIconUrl(value)) return value;
-    if (/^[a-z0-9-]+$/i.test(value)) return di(value.toLowerCase());
-    return null; // invalid explicit value → chip fallback
+    if (isCustomIconUrl(value)) return [value];
+    if (/^[a-z0-9-]+$/i.test(value)) {
+      const v = value.toLowerCase();
+      push(list, ALIASES[v]);
+      push(list, si(v));
+      push(list, di(v));
+      return list;
+    }
+    return list; // invalid explicit value → chip fallback
   }
 
   const normalized = normalizeSkillName(name);
-  if (!normalized) return null;
+  if (!normalized) return list;
 
-  if (ALIASES[normalized]) return ALIASES[normalized];
+  push(list, ALIASES[normalized]);
+  push(list, si(normalized));
+  push(list, di(normalized));
 
-  // Try the significant words of multi-word names: "Prisma ORM" → "prisma"
+  // Dotted brand slugs: "Next.js" → si "nextdotjs", "three.js" → "threedotjs"
+  const dotted = name.toLowerCase().match(/[a-z0-9]+(?:\.[a-z0-9]+)+/g) ?? [];
+  for (const t of dotted) push(list, si(t.replace(/\./g, "dot")));
+
+  // Significant words of multi-word names: "Prisma ORM" → "prisma"
   const words = name
     .toLowerCase()
     .replace(/\([^)]*\)/g, " ")
     .split(/[^a-z0-9]+/)
     .filter((w) => w.length >= 3);
-  for (const w of words) {
-    if (ALIASES[w]) return ALIASES[w];
-  }
+  for (const w of words) push(list, ALIASES[w]);
 
-  // Last resort: guess a kebab-case dashboard-icons slug (letter-chip fallback covers 404s)
-  if (/^[a-z0-9]+$/.test(normalized) && normalized.length >= 2) {
-    return di(normalized);
-  }
-  return null;
+  return list;
+}
+
+/** Preferred single URL — first candidate or null (convenience wrapper). */
+export function resolveStackIcon(name: string, icon?: string): string | null {
+  return resolveStackIconCandidates(name, icon)[0] ?? null;
 }

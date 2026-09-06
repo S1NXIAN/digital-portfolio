@@ -49,9 +49,9 @@ export const SEED_PROFILE = {
 };
 
 /**
- * Skill icon semantics: "" = auto-match from the name via dashboardicons.com /
- * simpleicons.org, "https://…" = custom image URL, "slug" = dashboardicons.com
- * slug. See src/lib/stack-icons.ts.
+ * Skill icon semantics: "" = auto-match from the name via simple-icons /
+ * dashboardicons, "https://…" = custom image URL, "slug" = icon slug
+ * (simple-icons or dashboardicons; both providers are tried). See src/lib/stack-icons.ts.
  */
 export const SEED_SKILLS: {
   name: string;

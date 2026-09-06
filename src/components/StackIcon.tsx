@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { resolveStackIcon } from "@/lib/stack-icons";
+import { useEffect, useMemo, useState } from "react";
+import { resolveStackIconCandidates } from "@/lib/stack-icons";
 
 interface StackIconProps {
   name: string;
-  /** "" = auto-match · "https://…" = custom URL · otherwise a dashboardicons.com slug */
+  /** "" = auto-match · "https://…" = custom URL · otherwise an icon slug
+   *  (simple-icons or dashboardicons — both providers are tried in order) */
   icon?: string;
   /** size + extra classes, e.g. "size-4" or "size-5" */
   className?: string;
@@ -13,14 +14,24 @@ interface StackIconProps {
 }
 
 /**
- * Icon for a stack item: custom URL / dashboardicons slug / auto-matched from the name.
- * Falls back to a letter chip when nothing resolves or the image 404s.
+ * Icon for a stack item: custom URL / icon slug / auto-matched from the name.
+ * Walks the candidate list (curated alias → Simple Icons → Dashboard Icons)
+ * and only falls back to a letter chip when every provider misses — so any
+ * recognizable brand always gets its real logo.
  */
 export default function StackIcon({ name, icon, className, title }: StackIconProps) {
-  const src = resolveStackIcon(name, icon);
-  const [failedFor, setFailedFor] = useState<string | null>(null);
+  const candidates = useMemo(
+    () => resolveStackIconCandidates(name, icon),
+    [name, icon]
+  );
+  const [tried, setTried] = useState(0);
 
-  if (!src || failedFor === src) {
+  // Reset the walk when the candidate list changes (skill edited/renamed).
+  useEffect(() => setTried(0), [candidates]);
+
+  const src = candidates[tried];
+
+  if (!src) {
     const letter = (name.trim()[0] ?? "?").toUpperCase();
     return (
       <span
@@ -43,7 +54,7 @@ export default function StackIcon({ name, icon, className, title }: StackIconPro
       loading="lazy"
       decoding="async"
       draggable={false}
-      onError={() => setFailedFor(src)}
+      onError={() => setTried((t) => t + 1)}
       className={`object-contain ${className ?? ""}`}
     />
   );
