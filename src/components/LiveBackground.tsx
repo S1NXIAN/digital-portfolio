@@ -12,6 +12,25 @@ type Particle = {
   radius: number;
   /** 0–1 proximity to the cursor; drives brightening + cursor links. */
   glow: number;
+  /** Cruise speed the particle eases back to after being kicked around. */
+  baseSpeed: number;
+  /** Per-particle phase for the slow organic wander. */
+  phase: number;
+  /** Milliseconds spent continuously inside the cursor radius. */
+  dwell: number;
+  /** 0–1 build-up toward the 5s push-back; drives arcs + link strain. */
+  tension: number;
+};
+
+/** An expanding shockwave that kicks particles as its front passes over them. */
+type Ring = {
+  x: number;
+  y: number;
+  r: number;
+  prevR: number;
+  maxR: number;
+  /** Impulse at the epicenter — falls off linearly to zero at maxR. */
+  strength: number;
 };
 
 const LINK_DISTANCE = 130;
@@ -28,6 +47,39 @@ const AREA_PER_PARTICLE = 22000;
 const MIN_PARTICLES = 36;
 const MAX_PARTICLES = 90;
 const FALLBACK_COLOR = "rgba(128, 128, 128, 1)";
+
+/* ------------------------- interaction tuning ------------------------- */
+
+/** Reach of a click shockwave (px). */
+const IMPACT_RADIUS = 240;
+/** Velocity kick at the epicenter — closer dots scatter harder. */
+const IMPACT_FORCE = 3.4;
+/** Double-click nova scales both radius and force. */
+const NOVA_MULTIPLIER = 1.7;
+/** Ring expansion speed, px per 16.7ms frame. */
+const RING_SPEED = 5.2;
+/** A click shorter than this is a burst; holding longer is a gravity well. */
+const HOLD_CLICK_MS = 240;
+const HOLD_RADIUS = 210;
+const HOLD_PULL = 0.14;
+const HOLD_SWIRL = 0.3;
+/** Outward fling when the well releases — grows with hold duration. */
+const HOLD_FLING_BASE = 1.8;
+const HOLD_FLING_MAX = 2.8;
+/** Connected to the cursor for this long → pushed back. */
+const DWELL_LIMIT_MS = 5000;
+/** How fast dwell bleeds off outside the cursor radius (× real time). */
+const DWELL_DECAY_RATE = 2.2;
+const PUSHBACK_IMPULSE = 3.6;
+const PUSHBACK_RING_RADIUS = 120;
+const PUSHBACK_RING_FORCE = 1.9;
+/** Fast cursor swipes drag nearby dots along ("wind"). */
+const WIND_COUPLE = 0.05;
+/** Hard cap for any velocity after kicks. */
+const MAX_KICK = 4.6;
+/** Per-frame ease back toward cruise speed after being disturbed. */
+const SPEED_RECOVER = 0.028;
+
 const ORB_PRIMARY_GRADIENT =
   "radial-gradient(circle, color-mix(in oklch, var(--primary) 30%, transparent), transparent 70%)";
 const ORB_GLOW_GRADIENT =
@@ -51,6 +103,15 @@ const getReducedMotionServerSnapshot = () => false;
 /**
  * Site-wide ambient background: drifting emerald gradient orbs, a constellation
  * particle canvas, a masked dot grid and a film-grain overlay.
+ *
+ * Canvas interactions (desktop pointer + touch taps):
+ *  - click            → shockwave; nearer dots scatter harder, visible ring
+ *  - double-click     → nova — wider and far more violent
+ *  - press & hold     → gravity well pulls dots into orbit; release flings them
+ *  - hover ≥ 5s       → a dot connected to the cursor builds tension (countdown
+ *                       arc) and is then pushed back with its own mini ripple
+ *  - fast swipes      → cursor wind drags nearby dots along
+ *
  * Entirely decorative — never intercepts pointer events, skipped (static
  * fallback) when the user prefers reduced motion.
  */
@@ -74,12 +135,29 @@ export default function LiveBackground() {
     let width = 0;
     let height = 0;
     let particles: Particle[] = [];
+    let rings: Ring[] = [];
     let rafId = 0;
     let running = false;
     let resizeTimer: ReturnType<typeof setTimeout> | undefined;
     let themeColor: string = FALLBACK_COLOR;
+    let lastFrame = performance.now();
 
     const mouse = { x: -9999, y: -9999 };
+    let prevMouseX = -9999;
+    let prevMouseY = -9999;
+    let mouseVX = 0;
+    let mouseVY = 0;
+
+    // Gravity-well (press & hold) state.
+    let holding = false;
+    let downAt = 0;
+    let downX = 0;
+    let downY = 0;
+
+    // Double-click nova detection.
+    let lastBurstAt = 0;
+    let lastBurstX = 0;
+    let lastBurstY = 0;
 
     // Read the accent-aware color ONCE per theme change (not per frame).
     const readThemeColor = (): string =>
@@ -98,6 +176,10 @@ export default function LiveBackground() {
           vy: Math.sin(angle) * speed,
           radius: 1 + Math.random() * 1.2,
           glow: 0,
+          baseSpeed: speed,
+          phase: Math.random() * Math.PI * 2,
+          dwell: 0,
+          tension: 0,
         });
       }
       return next;
@@ -115,14 +197,53 @@ export default function LiveBackground() {
       particles = spawn(
         clamp(Math.floor((width * height) / AREA_PER_PARTICLE), MIN_PARTICLES, MAX_PARTICLES)
       );
+      rings = [];
     };
 
-    const draw = (): void => {
+    /** Spawn a shockwave; `nova` doubles down for double-clicks. */
+    const burst = (x: number, y: number, nova: boolean): void => {
+      const scale = nova ? NOVA_MULTIPLIER : 1;
+      rings.push({
+        x,
+        y,
+        r: 0,
+        prevR: 0,
+        maxR: IMPACT_RADIUS * scale,
+        strength: IMPACT_FORCE * scale,
+      });
+    };
+
+    const draw = (now: number): void => {
+      const dtMs = clamp(now - lastFrame, 8, 50);
+      lastFrame = now;
+      const dt = dtMs / 16.667; // frame-normalized delta
+
+      // Cursor velocity ("wind") — zero when the pointer is parked/offscreen.
+      if (mouse.x > -999) {
+        mouseVX = mouse.x - prevMouseX;
+        mouseVY = mouse.y - prevMouseY;
+      } else {
+        mouseVX = 0;
+        mouseVY = 0;
+      }
+      prevMouseX = mouse.x;
+      prevMouseY = mouse.y;
+
       ctx.clearRect(0, 0, width, height);
 
       for (const p of particles) {
-        p.x += p.vx;
-        p.y += p.vy;
+        // Organic wander — the velocity vector slowly rotates so dots curve
+        // instead of coasting in straight lines.
+        const rot = Math.sin(now * 0.00045 + p.phase) * 0.0035 * dt;
+        const cosR = Math.cos(rot);
+        const sinR = Math.sin(rot);
+        const wx = p.vx * cosR - p.vy * sinR;
+        const wy = p.vx * sinR + p.vy * cosR;
+        p.vx = wx;
+        p.vy = wy;
+
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
 
         // Toroidal wrap so particles never pile up at the edges.
         if (p.x < -EDGE_MARGIN) p.x = width + EDGE_MARGIN;
@@ -130,22 +251,119 @@ export default function LiveBackground() {
         if (p.y < -EDGE_MARGIN) p.y = height + EDGE_MARGIN;
         else if (p.y > height + EDGE_MARGIN) p.y = -EDGE_MARGIN;
 
-        // Particles flee the cursor — a radial push plus a tangential
-        // swirl so the field orbits around the pointer instead of just
-        // parting. Proximity is remembered for glow/link rendering.
         const dx = p.x - mouse.x;
         const dy = p.y - mouse.y;
         const dist = Math.hypot(dx, dy);
-        if (dist < MOUSE_RADIUS && dist > 0.0001) {
-          const falloff = 1 - dist / MOUSE_RADIUS;
-          const push = falloff * MOUSE_PUSH;
-          const ux = dx / dist;
-          const uy = dy / dist;
+        const ux = dist > 0.0001 ? dx / dist : 0;
+        const uy = dist > 0.0001 ? dy / dist : 0;
+
+        let falloff = 0;
+        if (!holding && dist < MOUSE_RADIUS && dist > 0.0001) {
+          // Particles flee the cursor — radial push + tangential swirl, and
+          // fast swipes drag them along like wind. Proximity is remembered
+          // for glow/link rendering.
+          falloff = 1 - dist / MOUSE_RADIUS;
+          const push = falloff * MOUSE_PUSH * dt;
           p.x += ux * push - uy * push * MOUSE_SWIRL;
           p.y += uy * push + ux * push * MOUSE_SWIRL;
+          p.vx += mouseVX * WIND_COUPLE * falloff;
+          p.vy += mouseVY * WIND_COUPLE * falloff;
           p.glow = Math.max(p.glow, falloff);
+
+          // Dwell: how long this dot has stayed connected to the cursor.
+          p.dwell = Math.min(p.dwell + dtMs, DWELL_LIMIT_MS);
         } else {
-          p.glow *= 0.9;
+          p.glow *= Math.pow(0.9, dt);
+          // While holding, the gravity well owns the neighborhood — dwell
+          // bleeds off instead of building (no push-back fights the well).
+          p.dwell = Math.max(0, p.dwell - dtMs * DWELL_DECAY_RATE);
+        }
+
+        const tension = p.dwell / DWELL_LIMIT_MS;
+
+        // 5-second rule: a dot that clings to the cursor too long is
+        // ejected with a strong outward kick and its own mini ripple.
+        if (p.dwell >= DWELL_LIMIT_MS && !holding && dist > 0.0001) {
+          p.vx += ux * PUSHBACK_IMPULSE;
+          p.vy += uy * PUSHBACK_IMPULSE;
+          p.dwell = 0;
+          rings.push({
+            x: p.x,
+            y: p.y,
+            r: 0,
+            prevR: 0,
+            maxR: PUSHBACK_RING_RADIUS,
+            strength: PUSHBACK_RING_FORCE,
+          });
+        }
+
+        // Gravity well — while pressed, nearby dots are pulled into a
+        // slow orbit around the pointer.
+        if (holding && dist < HOLD_RADIUS && dist > 1) {
+          const pull = (1 - dist / HOLD_RADIUS) * HOLD_PULL * dt;
+          p.vx += -ux * pull + -uy * pull * HOLD_SWIRL;
+          p.vy += -uy * pull + ux * pull * HOLD_SWIRL;
+          p.glow = Math.max(p.glow, 1 - dist / HOLD_RADIUS);
+        }
+
+        // Shockwave fronts kick particles as they sweep past. Impact falls
+        // off linearly with distance — the closer, the harder the hit.
+        for (let i = rings.length - 1; i >= 0; i -= 1) {
+          const ring = rings[i];
+          const rdx = p.x - ring.x;
+          const rdy = p.y - ring.y;
+          const rDist = Math.hypot(rdx, rdy);
+          if (rDist <= ring.r && rDist > ring.prevR - 24) {
+            const power = ring.strength * (1 - rDist / ring.maxR);
+            if (rDist > 0.5) {
+              p.vx += (rdx / rDist) * power;
+              p.vy += (rdy / rDist) * power;
+            } else {
+              const a = Math.random() * Math.PI * 2;
+              p.vx += Math.cos(a) * power;
+              p.vy += Math.sin(a) * power;
+            }
+            p.glow = Math.max(p.glow, 0.55);
+          }
+        }
+
+        // Velocity settles back toward cruise speed after any disturbance.
+        const speed = Math.hypot(p.vx, p.vy) || 0.0001;
+        const recover = 1 + (p.baseSpeed / speed - 1) * SPEED_RECOVER * dt;
+        p.vx *= recover;
+        p.vy *= recover;
+        const settled = Math.hypot(p.vx, p.vy);
+        if (settled > MAX_KICK) {
+          p.vx *= MAX_KICK / settled;
+          p.vy *= MAX_KICK / settled;
+        }
+
+        p.tension = tension;
+      }
+
+      // Advance shockwaves.
+      for (let i = rings.length - 1; i >= 0; i -= 1) {
+        const ring = rings[i];
+        ring.prevR = ring.r;
+        ring.r += RING_SPEED * dt;
+        if (ring.r >= ring.maxR) rings.splice(i, 1);
+      }
+
+      // Shockwave rings — a bright leading edge with a faint echo inside.
+      ctx.strokeStyle = themeColor;
+      for (const ring of rings) {
+        const life = 1 - ring.r / ring.maxR;
+        ctx.lineWidth = 1.4;
+        ctx.globalAlpha = 0.35 * life;
+        ctx.beginPath();
+        ctx.arc(ring.x, ring.y, ring.r, 0, Math.PI * 2);
+        ctx.stroke();
+        if (ring.r > 12) {
+          ctx.lineWidth = 1;
+          ctx.globalAlpha = 0.14 * life;
+          ctx.beginPath();
+          ctx.arc(ring.x, ring.y, ring.r * 0.55, 0, Math.PI * 2);
+          ctx.stroke();
         }
       }
 
@@ -169,39 +387,51 @@ export default function LiveBackground() {
         }
       }
 
-      // Links from the cursor itself to nearby particles — the
-      // constellation visibly reaches toward the pointer.
-      ctx.strokeStyle = themeColor;
-      ctx.lineWidth = 1;
+      // Links from the cursor to nearby particles. A dot nearing its 5s
+      // limit strains the link — it thickens and brightens with tension.
       for (const p of particles) {
         if (p.glow <= 0.01) continue;
-        ctx.globalAlpha = p.glow * CURSOR_LINK_ALPHA;
+        ctx.globalAlpha = p.glow * (CURSOR_LINK_ALPHA + p.tension * 0.25);
+        ctx.lineWidth = 1 + p.tension * 1.2;
         ctx.beginPath();
         ctx.moveTo(mouse.x, mouse.y);
         ctx.lineTo(p.x, p.y);
         ctx.stroke();
       }
+      ctx.lineWidth = 1;
 
-      // Dots brighten and swell near the cursor.
+      // Countdown arcs — dots connected to the cursor show a filling ring
+      // that visualizes the time left before they are pushed back.
+      ctx.strokeStyle = themeColor;
+      for (const p of particles) {
+        if (p.tension <= 0.02) continue;
+        ctx.globalAlpha = 0.28 + p.tension * 0.42;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius + 3.5, -Math.PI / 2, -Math.PI / 2 + p.tension * Math.PI * 2);
+        ctx.stroke();
+      }
+
+      // Dots brighten and swell near the cursor (and with tension).
       ctx.fillStyle = themeColor;
       for (const p of particles) {
         ctx.globalAlpha = PARTICLE_ALPHA + p.glow * GLOW_ALPHA_BOOST;
         ctx.beginPath();
-        ctx.arc(p.x, p.y, p.radius + p.glow * 0.9, 0, Math.PI * 2);
+        ctx.arc(p.x, p.y, p.radius + p.glow * 0.9 + p.tension * 1.1, 0, Math.PI * 2);
         ctx.fill();
       }
       ctx.globalAlpha = 1;
     };
 
-    const step = (): void => {
+    const step = (now: number): void => {
       if (!running) return;
-      draw();
+      draw(now);
       rafId = requestAnimationFrame(step);
     };
 
     const start = (): void => {
       if (running) return;
       running = true;
+      lastFrame = performance.now();
       rafId = requestAnimationFrame(step);
     };
 
@@ -228,6 +458,49 @@ export default function LiveBackground() {
     const handleMouseLeave = (): void => {
       mouse.x = -9999;
       mouse.y = -9999;
+      holding = false;
+    };
+
+    const handlePointerDown = (event: PointerEvent): void => {
+      if (event.button !== 0) return;
+      holding = true;
+      downAt = performance.now();
+      downX = event.clientX;
+      downY = event.clientY;
+    };
+
+    const handlePointerUp = (event: PointerEvent): void => {
+      if (!holding) return;
+      holding = false;
+      const heldMs = performance.now() - downAt;
+      const x = event.clientX || downX;
+      const y = event.clientY || downY;
+
+      if (heldMs < HOLD_CLICK_MS) {
+        // Quick click → shockwave. Two rapid clicks in the same spot → nova.
+        const nova =
+          performance.now() - lastBurstAt < 350 &&
+          Math.hypot(x - lastBurstX, y - lastBurstY) < 40;
+        burst(x, y, nova);
+        lastBurstAt = performance.now();
+        lastBurstX = x;
+        lastBurstY = y;
+      } else {
+        // Released gravity well → slingshot everything outward. The longer
+        // the hold, the harder the fling.
+        const fling = clamp(HOLD_FLING_BASE + heldMs / 1000 * 0.4, HOLD_FLING_BASE, HOLD_FLING_MAX);
+        const mx = mouse.x > -999 ? mouse.x : x;
+        const my = mouse.y > -999 ? mouse.y : y;
+        rings.push({ x: mx, y: my, r: 0, prevR: 0, maxR: 300, strength: fling });
+      }
+    };
+
+    const handlePointerCancel = (): void => {
+      holding = false;
+    };
+
+    const handleBlur = (): void => {
+      holding = false;
     };
 
     const handleResize = (): void => {
@@ -246,6 +519,10 @@ export default function LiveBackground() {
     document.addEventListener("visibilitychange", handleVisibility);
     window.addEventListener("resize", handleResize);
     window.addEventListener("mousemove", handleMouseMove, { passive: true });
+    window.addEventListener("pointerdown", handlePointerDown, { passive: true });
+    window.addEventListener("pointerup", handlePointerUp, { passive: true });
+    window.addEventListener("pointercancel", handlePointerCancel, { passive: true });
+    window.addEventListener("blur", handleBlur);
     document.documentElement.addEventListener("mouseleave", handleMouseLeave);
 
     return () => {
@@ -254,6 +531,10 @@ export default function LiveBackground() {
       document.removeEventListener("visibilitychange", handleVisibility);
       window.removeEventListener("resize", handleResize);
       window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("pointerup", handlePointerUp);
+      window.removeEventListener("pointercancel", handlePointerCancel);
+      window.removeEventListener("blur", handleBlur);
       document.documentElement.removeEventListener("mouseleave", handleMouseLeave);
       if (resizeTimer) clearTimeout(resizeTimer);
     };
