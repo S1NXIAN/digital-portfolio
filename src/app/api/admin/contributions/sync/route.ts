@@ -25,7 +25,8 @@ const tokenSchema = z.object({
 export async function POST(req: Request) {
   if (!(await isAuthed(req))) return unauthorized();
   try {
-    const { username } = syncSchema.parse(await req.json());
+    const body = await req.json().catch(() => null); // malformed/empty body → 400, not 500
+    const { username } = syncSchema.parse(body);
     const result = await runContributionsSync(username, "manual");
     return Response.json({ ok: true, ...result });
   } catch (err) {
