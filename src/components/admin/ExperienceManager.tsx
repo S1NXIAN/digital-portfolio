@@ -187,7 +187,7 @@ export default function ExperienceManager() {
             onReorder={onReorder}
             onKeyboardMove={onKeyboardMove}
             disabled={filtering}
-            className="space-y-0"
+            className="space-y-1.5"
             renderItem={(item, index, handle, isLast) => (
               <>
                 <div className="flex items-start gap-3 rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/40">

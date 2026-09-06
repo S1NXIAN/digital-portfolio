@@ -251,7 +251,7 @@ export default function KnowledgeManager() {
             onReorder={onReorder}
             onKeyboardMove={onKeyboardMove}
             disabled={filtering}
-            className="space-y-0"
+            className="space-y-3"
             renderItem={(item, _index, handle) => {
               const IconComp = KNOWLEDGE_ICONS[item.icon] ?? Sparkles;
               return (

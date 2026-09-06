@@ -434,7 +434,7 @@ export default function RepoManager() {
             onReorder={onReorder}
             onKeyboardMove={onKeyboardMove}
             disabled={filtering}
-            className="space-y-0"
+            className="space-y-3"
             renderItem={(repo, _index, handle) => (
               <div className="rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/40">
                 <div className="flex items-start justify-between gap-3">
