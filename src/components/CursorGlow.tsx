@@ -1,10 +1,17 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { motion, useMotionValue, useSpring } from "framer-motion";
+import { motion, useSpring } from "framer-motion";
+import {
+  cursorArmed,
+  cursorInside,
+  cursorVariant,
+  cursorX,
+  cursorY,
+  type CursorVariant,
+} from "@/lib/cursor-state";
 
 const GLOW_SIZE = 420;
-const OFFSCREEN = -9999;
 
 const subscribeNoop = () => () => undefined;
 
@@ -17,52 +24,45 @@ const getGlowCapabilitySnapshot = () =>
 const getGlowCapabilityServerSnapshot = () => false;
 
 /**
- * Soft spotlight that trails the cursor. Desktop-only (fine pointer,
- * >= 768px viewport), disabled under reduced motion. Purely decorative.
+ * Soft spotlight that trails the cursor and REACTS to what it hovers:
+ * swells over interactive elements, shrinks over text fields and blooms
+ * over labelled "view" targets. Desktop-only (fine pointer, >= 768px
+ * viewport), disabled under reduced motion. Purely decorative.
  */
 export default function CursorGlow() {
-  const [insideWindow, setInsideWindow] = useState(true);
   const enabled = useSyncExternalStore(
     subscribeNoop,
     getGlowCapabilitySnapshot,
     getGlowCapabilityServerSnapshot
   );
+  const [variant, setVariant] = useState<CursorVariant>(() => cursorVariant.get());
+  const [inside, setInside] = useState(() => cursorInside.get());
 
-  const mouseX = useMotionValue(OFFSCREEN);
-  const mouseY = useMotionValue(OFFSCREEN);
-  const springX = useSpring(mouseX, { stiffness: 70, damping: 22, mass: 0.6 });
-  const springY = useSpring(mouseY, { stiffness: 70, damping: 22, mass: 0.6 });
+  const glowX = useSpring(cursorX, { stiffness: 70, damping: 22, mass: 0.6 });
+  const glowY = useSpring(cursorY, { stiffness: 70, damping: 22, mass: 0.6 });
 
   useEffect(() => {
-    if (!enabled) return;
-
-    let firstMove = true;
-    const handleMouseMove = (event: MouseEvent) => {
-      mouseX.set(event.clientX);
-      mouseY.set(event.clientY);
-      if (firstMove) {
-        // Snap to the cursor on the first move instead of sweeping across
-        // the screen from the offscreen start position.
-        firstMove = false;
-        springX.jump(event.clientX);
-        springY.jump(event.clientY);
+    // Snap to the cursor on the first move instead of sweeping across
+    // the screen from the offscreen start position.
+    const unsubArmed = cursorArmed.on("change", (armed) => {
+      if (armed) {
+        glowX.jump(cursorX.get());
+        glowY.jump(cursorY.get());
       }
-    };
-    const handleDocMouseLeave = () => setInsideWindow(false);
-    const handleDocMouseEnter = () => setInsideWindow(true);
-
-    window.addEventListener("mousemove", handleMouseMove, { passive: true });
-    document.addEventListener("mouseleave", handleDocMouseLeave);
-    document.addEventListener("mouseenter", handleDocMouseEnter);
-
+    });
+    const unsubVariant = cursorVariant.on("change", (next) => setVariant(next));
+    const unsubInside = cursorInside.on("change", (next) => setInside(next));
     return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseleave", handleDocMouseLeave);
-      document.removeEventListener("mouseenter", handleDocMouseEnter);
+      unsubArmed();
+      unsubVariant();
+      unsubInside();
     };
-  }, [enabled, mouseX, mouseY, springX, springY]);
+  }, [glowX, glowY]);
 
   if (!enabled) return null;
+
+  const scale =
+    variant === "link" ? 1.35 : variant === "view" ? 1.7 : variant === "text" ? 0.5 : 1;
 
   return (
     <motion.div
@@ -71,12 +71,12 @@ export default function CursorGlow() {
       style={{
         width: GLOW_SIZE,
         height: GLOW_SIZE,
-        x: springX,
-        y: springY,
+        x: glowX,
+        y: glowY,
         background:
           "radial-gradient(circle, color-mix(in oklch, var(--primary) 16%, transparent), transparent 70%)",
       }}
-      animate={{ opacity: insideWindow ? 1 : 0.4 }}
+      animate={{ opacity: inside ? 1 : 0.4, scale }}
       transition={{ duration: 0.45, ease: "easeOut" }}
     />
   );

@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useSyncExternalStore } from "react";
+import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
+import { cursorNX, cursorNY } from "@/lib/cursor-state";
 
 type Particle = {
   x: number;
@@ -8,13 +10,18 @@ type Particle = {
   vx: number;
   vy: number;
   radius: number;
+  /** 0–1 proximity to the cursor; drives brightening + cursor links. */
+  glow: number;
 };
 
 const LINK_DISTANCE = 130;
 const LINK_ALPHA = 0.22;
 const PARTICLE_ALPHA = 0.45;
 const MOUSE_RADIUS = 140;
-const MOUSE_PUSH = 0.4;
+const MOUSE_PUSH = 0.55;
+const MOUSE_SWIRL = 0.5;
+const CURSOR_LINK_ALPHA = 0.3;
+const GLOW_ALPHA_BOOST = 0.45;
 const MAX_SPEED = 0.25;
 const EDGE_MARGIN = 24;
 const AREA_PER_PARTICLE = 22000;
@@ -90,6 +97,7 @@ export default function LiveBackground() {
           vx: Math.cos(angle) * speed,
           vy: Math.sin(angle) * speed,
           radius: 1 + Math.random() * 1.2,
+          glow: 0,
         });
       }
       return next;
@@ -122,14 +130,22 @@ export default function LiveBackground() {
         if (p.y < -EDGE_MARGIN) p.y = height + EDGE_MARGIN;
         else if (p.y > height + EDGE_MARGIN) p.y = -EDGE_MARGIN;
 
-        // Gentle push away from the cursor, capped at MOUSE_PUSH px/frame.
+        // Particles flee the cursor — a radial push plus a tangential
+        // swirl so the field orbits around the pointer instead of just
+        // parting. Proximity is remembered for glow/link rendering.
         const dx = p.x - mouse.x;
         const dy = p.y - mouse.y;
         const dist = Math.hypot(dx, dy);
         if (dist < MOUSE_RADIUS && dist > 0.0001) {
-          const push = (1 - dist / MOUSE_RADIUS) * MOUSE_PUSH;
-          p.x += (dx / dist) * push;
-          p.y += (dy / dist) * push;
+          const falloff = 1 - dist / MOUSE_RADIUS;
+          const push = falloff * MOUSE_PUSH;
+          const ux = dx / dist;
+          const uy = dy / dist;
+          p.x += ux * push - uy * push * MOUSE_SWIRL;
+          p.y += uy * push + ux * push * MOUSE_SWIRL;
+          p.glow = Math.max(p.glow, falloff);
+        } else {
+          p.glow *= 0.9;
         }
       }
 
@@ -153,12 +169,25 @@ export default function LiveBackground() {
         }
       }
 
-      // Dots.
-      ctx.fillStyle = themeColor;
-      ctx.globalAlpha = PARTICLE_ALPHA;
+      // Links from the cursor itself to nearby particles — the
+      // constellation visibly reaches toward the pointer.
+      ctx.strokeStyle = themeColor;
+      ctx.lineWidth = 1;
       for (const p of particles) {
+        if (p.glow <= 0.01) continue;
+        ctx.globalAlpha = p.glow * CURSOR_LINK_ALPHA;
         ctx.beginPath();
-        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.moveTo(mouse.x, mouse.y);
+        ctx.lineTo(p.x, p.y);
+        ctx.stroke();
+      }
+
+      // Dots brighten and swell near the cursor.
+      ctx.fillStyle = themeColor;
+      for (const p of particles) {
+        ctx.globalAlpha = PARTICLE_ALPHA + p.glow * GLOW_ALPHA_BOOST;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius + p.glow * 0.9, 0, Math.PI * 2);
         ctx.fill();
       }
       ctx.globalAlpha = 1;
@@ -230,6 +259,21 @@ export default function LiveBackground() {
     };
   }, [reducedMotion]);
 
+  // Cursor parallax — orbs drift with/against the normalized pointer for
+  // a subtle depth effect. Static under reduced motion.
+  const parallaxX = useSpring(cursorNX, { stiffness: 45, damping: 20, mass: 0.9 });
+  const parallaxY = useSpring(cursorNY, { stiffness: 45, damping: 20, mass: 0.9 });
+  const restX = useMotionValue(0);
+  const restY = useMotionValue(0);
+  const activeX = reducedMotion ? restX : parallaxX;
+  const activeY = reducedMotion ? restY : parallaxY;
+  const orb1X = useTransform(activeX, (v) => v * 18);
+  const orb1Y = useTransform(activeY, (v) => v * 12);
+  const orb2X = useTransform(activeX, (v) => v * -22);
+  const orb2Y = useTransform(activeY, (v) => v * -14);
+  const orb3X = useTransform(activeX, (v) => v * -10);
+  const orb3Y = useTransform(activeY, (v) => v * -7);
+
   // Without the animation classes the orbs render as static gradients.
   const orb1Anim = reducedMotion ? "" : "orb-1";
   const orb2Anim = reducedMotion ? "" : "orb-2";
@@ -240,19 +284,25 @@ export default function LiveBackground() {
       aria-hidden="true"
       className="pointer-events-none fixed inset-0 -z-10 overflow-hidden"
     >
-      {/* Layer A — ambient gradient orbs */}
-      <div
-        className={`absolute -left-[12vw] -top-[14vh] h-[55vw] w-[55vw] rounded-full opacity-60 blur-3xl ${orb1Anim}`}
-        style={{ background: ORB_PRIMARY_GRADIENT }}
-      />
-      <div
-        className={`absolute -bottom-[16vh] -right-[10vw] h-[45vw] w-[45vw] rounded-full opacity-60 blur-3xl ${orb2Anim}`}
-        style={{ background: ORB_PRIMARY_GRADIENT }}
-      />
-      <div
-        className={`absolute -top-[10vh] right-[6vw] h-[30vw] w-[30vw] rounded-full opacity-40 blur-3xl ${orb3Anim}`}
-        style={{ background: ORB_GLOW_GRADIENT }}
-      />
+      {/* Layer A — ambient gradient orbs with cursor parallax */}
+      <motion.div className="absolute inset-0" style={{ x: orb1X, y: orb1Y }}>
+        <div
+          className={`absolute -left-[12vw] -top-[14vh] h-[55vw] w-[55vw] rounded-full opacity-60 blur-3xl ${orb1Anim}`}
+          style={{ background: ORB_PRIMARY_GRADIENT }}
+        />
+      </motion.div>
+      <motion.div className="absolute inset-0" style={{ x: orb2X, y: orb2Y }}>
+        <div
+          className={`absolute -bottom-[16vh] -right-[10vw] h-[45vw] w-[45vw] rounded-full opacity-60 blur-3xl ${orb2Anim}`}
+          style={{ background: ORB_PRIMARY_GRADIENT }}
+        />
+      </motion.div>
+      <motion.div className="absolute inset-0" style={{ x: orb3X, y: orb3Y }}>
+        <div
+          className={`absolute -top-[10vh] right-[6vw] h-[30vw] w-[30vw] rounded-full opacity-40 blur-3xl ${orb3Anim}`}
+          style={{ background: ORB_GLOW_GRADIENT }}
+        />
+      </motion.div>
 
       {/* Layer B — constellation particle field (skipped under reduced motion) */}
       {!reducedMotion && <canvas ref={canvasRef} className="absolute inset-0" />}

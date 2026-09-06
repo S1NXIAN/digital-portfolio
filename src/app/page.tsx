@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import AdminPanel from "@/components/admin/AdminPanel";
+import CustomCursor from "@/components/CustomCursor";
 import CursorGlow from "@/components/CursorGlow";
 import LiveBackground from "@/components/LiveBackground";
 import Portfolio from "@/components/Portfolio";
@@ -36,6 +37,7 @@ export default function Home() {
     <>
       <LiveBackground />
       <CursorGlow />
+      <CustomCursor />
       {view === "admin" ? (
         <AdminPanel onExit={exitAdmin} />
       ) : (

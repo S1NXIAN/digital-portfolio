@@ -30,6 +30,8 @@ export default function Repos({ repos }: { repos: RepoData[] }) {
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label={`${repo.name} on GitHub (opens in new tab)`}
+                  data-cursor="view"
+                  data-cursor-label="Open"
                   className="sheen group block h-full rounded-2xl border border-border/60 bg-card/60 p-6 backdrop-blur transition-colors duration-300 hover:border-primary/45 hover:shadow-xl hover:shadow-primary/[0.06]"
                 >
                   <div className="flex items-start justify-between gap-3">

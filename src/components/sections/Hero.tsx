@@ -241,7 +241,11 @@ export default function Hero({
             aria-hidden
           />
           <div className="sheen relative rounded-[2rem] border border-border/70 bg-card/70 p-2.5 shadow-2xl backdrop-blur">
-            <div className="relative aspect-[4/5] overflow-hidden rounded-[1.6rem]">
+            <div
+              className="relative aspect-[4/5] overflow-hidden rounded-[1.6rem]"
+              data-cursor="view"
+              data-cursor-label="Hello"
+            >
               <img
                 src={profile.photoUrl || "/avatar.png"}
                 alt={`Portrait of ${profile.name}`}
