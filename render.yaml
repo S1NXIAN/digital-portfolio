@@ -38,7 +38,7 @@ services:
       - key: SELF_PING_ENABLED
         value: "true"
       - key: SELF_PING_INTERVAL_MIN
-        value: "10"
+        value: "14"
       # GitHub contributions sync (incl. private commits). Set the real value in
       # the Render dashboard → Environment after first deploy.
       - key: GITHUB_TOKEN
