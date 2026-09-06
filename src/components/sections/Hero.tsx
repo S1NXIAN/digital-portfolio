@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useScroll, useTransform } from "framer-motion";
-import { ArrowDown, ArrowUpRight, Copy, MapPin } from "lucide-react";
+import { ArrowDown, ArrowUpRight, Copy, Download, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import Magnetic from "@/components/motion/Magnetic";
 import { SocialIcon } from "@/components/social-icons";
@@ -164,6 +164,28 @@ export default function Hero({
                 <ArrowUpRight className="h-4 w-4 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
               </Button>
             </Magnetic>
+            {profile.resumeUrl ? (
+              <Magnetic strength={0.25}>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  asChild
+                  className="rounded-full border-border/80 bg-card/60 backdrop-blur"
+                >
+                  <a
+                    href={profile.resumeUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Download résumé (opens in new tab)"
+                    data-cursor="view"
+                    data-cursor-label="Open"
+                  >
+                    Résumé
+                    <Download className="h-4 w-4" />
+                  </a>
+                </Button>
+              </Magnetic>
+            ) : null}
             {profile.email ? (
               <Magnetic strength={0.25}>
                 <Button
@@ -249,6 +271,10 @@ export default function Hero({
               <img
                 src={profile.photoUrl || "/avatar.png"}
                 alt={`Portrait of ${profile.name}`}
+                width={512}
+                height={512}
+                fetchPriority="high"
+                decoding="async"
                 className="h-full w-full object-cover"
               />
               <div

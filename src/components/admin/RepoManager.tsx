@@ -20,7 +20,16 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "./lib";
-import { ConfirmDeleteDialog, EmptyState, Field, ManagerError, ManagerLoading } from "./ManagerStates";
+import {
+  ConfirmDeleteDialog,
+  EmptyState,
+  Field,
+  ManagerError,
+  ManagerLoading,
+  ManagerToolbar,
+  ReorderButtons,
+} from "./ManagerStates";
+import { moveInList, usePersistedReorder } from "./use-reorder";
 
 export default function RepoManager() {
   const queryClient = useQueryClient();
@@ -35,6 +44,7 @@ export default function RepoManager() {
   const [description, setDescription] = useState("");
   const [url, setUrl] = useState("");
   const [language, setLanguage] = useState("");
+  const [topics, setTopics] = useState("");
   const [stars, setStars] = useState(0);
   const [forks, setForks] = useState(0);
   const [featured, setFeatured] = useState(true);
@@ -47,6 +57,7 @@ export default function RepoManager() {
     setDescription("");
     setUrl("");
     setLanguage("");
+    setTopics("");
     setStars(0);
     setForks(0);
     setFeatured(true);
@@ -61,6 +72,7 @@ export default function RepoManager() {
     setDescription(item.description ?? "");
     setUrl(item.url);
     setLanguage(item.language ?? "");
+    setTopics(item.topics ?? "");
     setStars(item.stars ?? 0);
     setForks(item.forks ?? 0);
     setFeatured(item.featured);
@@ -93,6 +105,25 @@ export default function RepoManager() {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  const [search, setSearch] = useState("");
+  const allItems = data?.items ?? [];
+  const needle = search.trim().toLowerCase();
+  const items = needle
+    ? allItems.filter(
+        (r) =>
+          r.name.toLowerCase().includes(needle) ||
+          (r.description ?? "").toLowerCase().includes(needle) ||
+          (r.language ?? "").toLowerCase().includes(needle) ||
+          (r.topics ?? "").toLowerCase().includes(needle)
+      )
+    : allItems;
+  const visibleIds = items.map((r) => r.id);
+  const { persist } = usePersistedReorder("repos", ["admin", "repos"]);
+  const onMove = (visibleIndex: number, dir: -1 | 1) => {
+    const next = moveInList(allItems, visibleIds, visibleIndex, dir);
+    if (next) persist(next, items[visibleIndex]?.name, dir);
+  };
+
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
@@ -109,6 +140,11 @@ export default function RepoManager() {
       description,
       url: url.trim(),
       language: language.trim(),
+      topics: topics
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean)
+        .join(","),
       stars: Math.max(0, Math.round(stars || 0)),
       forks: Math.max(0, Math.round(forks || 0)),
       featured,
@@ -119,26 +155,32 @@ export default function RepoManager() {
   if (isLoading) return <ManagerLoading />;
   if (isError) return <ManagerError message="Could not load repos." onRetry={() => refetch()} />;
 
-  const items = data?.items ?? [];
-
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">
-          {items.length} repo{items.length === 1 ? "" : "s"} — featured ones are highlighted on
-          the site.
-        </p>
+      <ManagerToolbar
+        search={search}
+        onSearch={setSearch}
+        searchPlaceholder="Search repos, languages, topics…"
+        count={items.length}
+        totalCount={allItems.length}
+      >
         <Button size="sm" onClick={openAdd}>
           <Plus className="size-4" aria-hidden />
           Add repo
         </Button>
-      </div>
+      </ManagerToolbar>
 
       {items.length === 0 ? (
-        <EmptyState message="No repos yet. Add your first repository." />
+        <EmptyState
+          message={
+            allItems.length === 0
+              ? "No repos yet. Add your first repository."
+              : `No repos match “${search}”.`
+          }
+        />
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
-          {items.map((repo) => (
+          {items.map((repo, index) => (
             <div
               key={repo.id}
               className="rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/40"
@@ -167,8 +209,26 @@ export default function RepoManager() {
                     ) : null}
                     <span className="text-xs text-muted-foreground">order {repo.order}</span>
                   </div>
+                  {repo.topics?.trim() ? (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {repo.topics
+                        .split(",")
+                        .map((t) => t.trim().toLowerCase())
+                        .filter(Boolean)
+                        .map((t) => (
+                          <Badge key={t} variant="outline" className="px-1.5 py-0 text-[10px] font-normal text-muted-foreground">
+                            #{t}
+                          </Badge>
+                        ))}
+                    </div>
+                  ) : null}
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
+                  <ReorderButtons
+                    onMove={onMove}
+                    index={index}
+                    total={items.length}
+                  />
                   <Button
                     variant="ghost"
                     size="icon"
@@ -270,6 +330,18 @@ export default function RepoManager() {
                 />
               </Field>
             </div>
+            <Field
+              label="Topics"
+              htmlFor="repo-topics"
+              hint="Comma-separated tags shown on the card, e.g. react, ai, cli"
+            >
+              <Input
+                id="repo-topics"
+                value={topics}
+                onChange={(e) => setTopics(e.target.value)}
+                placeholder="react, ai, cli"
+              />
+            </Field>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="flex items-center gap-3 rounded-lg border border-border p-3">
                 <Switch

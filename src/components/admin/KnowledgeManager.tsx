@@ -46,7 +46,16 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "./lib";
-import { ConfirmDeleteDialog, EmptyState, Field, ManagerError, ManagerLoading } from "./ManagerStates";
+import {
+  ConfirmDeleteDialog,
+  EmptyState,
+  Field,
+  ManagerError,
+  ManagerLoading,
+  ManagerToolbar,
+  ReorderButtons,
+} from "./ManagerStates";
+import { moveInList, usePersistedReorder } from "./use-reorder";
 
 export const KNOWLEDGE_ICONS: Record<string, LucideIcon> = {
   Sparkles,
@@ -131,6 +140,24 @@ export default function KnowledgeManager() {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  const [search, setSearch] = useState("");
+  const allItems = data?.items ?? [];
+  const needle = search.trim().toLowerCase();
+  const items = needle
+    ? allItems.filter(
+        (k) =>
+          k.title.toLowerCase().includes(needle) ||
+          (k.description ?? "").toLowerCase().includes(needle) ||
+          k.category.toLowerCase().includes(needle)
+      )
+    : allItems;
+  const visibleIds = items.map((k) => k.id);
+  const { persist } = usePersistedReorder("knowledge", ["admin", "knowledge"]);
+  const onMove = (visibleIndex: number, dir: -1 | 1) => {
+    const next = moveInList(allItems, visibleIds, visibleIndex, dir);
+    if (next) persist(next, items[visibleIndex]?.title, dir);
+  };
+
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (!title.trim()) {
@@ -155,26 +182,32 @@ export default function KnowledgeManager() {
   if (isError)
     return <ManagerError message="Could not load knowledge items." onRetry={() => refetch()} />;
 
-  const items = data?.items ?? [];
-
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">
-          {items.length} item{items.length === 1 ? "" : "s"} — the “what I know / what I care
-          about” cards on the site.
-        </p>
+      <ManagerToolbar
+        search={search}
+        onSearch={setSearch}
+        searchPlaceholder="Search knowledge cards…"
+        count={items.length}
+        totalCount={allItems.length}
+      >
         <Button size="sm" onClick={openAdd}>
           <Plus className="size-4" aria-hidden />
           Add knowledge item
         </Button>
-      </div>
+      </ManagerToolbar>
 
       {items.length === 0 ? (
-        <EmptyState message="No knowledge items yet. Add your first card." />
+        <EmptyState
+          message={
+            allItems.length === 0
+              ? "No knowledge items yet. Add your first card."
+              : `No cards match “${search}”.`
+          }
+        />
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
-          {items.map((item) => {
+          {items.map((item, index) => {
             const IconComp = KNOWLEDGE_ICONS[item.icon] ?? Sparkles;
             return (
               <div
@@ -188,6 +221,11 @@ export default function KnowledgeManager() {
                   <div className="flex items-start justify-between gap-2">
                     <h3 className="truncate text-sm font-semibold">{item.title}</h3>
                     <div className="flex shrink-0 items-center gap-1">
+                      <ReorderButtons
+                        onMove={onMove}
+                        index={index}
+                        total={items.length}
+                      />
                       <Button
                         variant="ghost"
                         size="icon"

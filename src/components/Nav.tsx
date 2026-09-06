@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useScroll, useSpring } from "framer-motion";
 import { Lock, Menu } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,9 @@ export default function Nav({
   const [scrolled, setScrolled] = useState(false);
   const [active, setActive] = useState<string>("");
   const [open, setOpen] = useState(false);
+
+  const { scrollYProgress } = useScroll();
+  const progress = useSpring(scrollYProgress, { stiffness: 140, damping: 28, mass: 0.3 });
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24);
@@ -142,6 +145,12 @@ export default function Nav({
           </Sheet>
         </div>
       </motion.nav>
+      {/* page scroll progress */}
+      <motion.div
+        aria-hidden
+        style={{ scaleX: progress }}
+        className="pointer-events-none absolute inset-x-3 top-0 h-0.5 origin-left rounded-full bg-gradient-to-r from-primary/70 via-primary to-glow/70 sm:inset-x-4"
+      />
       <AnimatePresence />
     </header>
   );

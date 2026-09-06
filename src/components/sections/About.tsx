@@ -90,7 +90,22 @@ export default function About({
 
         {profile.bio ? (
           <Reveal delay={0.1} className="mt-14 max-w-3xl">
-            <p className="text-lg leading-relaxed text-muted-foreground sm:text-xl">{profile.bio}</p>
+            <div className="space-y-4">
+              {profile.bio
+                .split(/\n{2,}|\r\n{2,}/)
+                .map((para) => para.trim())
+                .filter(Boolean)
+                .map((para, i) => (
+                  <p
+                    key={i}
+                    className={`leading-relaxed text-muted-foreground ${
+                      i === 0 ? "text-lg sm:text-xl" : "text-base sm:text-lg"
+                    }`}
+                  >
+                    {para}
+                  </p>
+                ))}
+            </div>
           </Reveal>
         ) : null}
 

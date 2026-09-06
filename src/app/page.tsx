@@ -13,7 +13,7 @@ export default function Home() {
   const [view, setView] = useState<View>("site");
 
   useEffect(() => {
-    const sync = () => setView(window.location.hash === "#admin" ? "admin" : "site");
+    const sync = () => setView(window.location.hash.startsWith("#admin") ? "admin" : "site");
     sync();
     window.addEventListener("hashchange", sync);
     return () => window.removeEventListener("hashchange", sync);

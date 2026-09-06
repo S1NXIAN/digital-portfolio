@@ -51,6 +51,8 @@ export interface RepoData {
   description: string;
   url: string;
   language: string;
+  /** comma-separated topic tags */
+  topics: string;
   stars: number;
   forks: number;
   featured: boolean;

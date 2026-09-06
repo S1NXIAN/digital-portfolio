@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { isAuthed, unauthorized } from "@/lib/admin-auth";
+import { invalidatePortfolioCache } from "@/lib/portfolio-cache";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +41,7 @@ export async function PUT(req: Request) {
     const data = profileSchema.parse(body);
     await ensureProfile();
     const profile = await db.profile.update({ where: { id: "main" }, data });
+    invalidatePortfolioCache();
     return Response.json({ profile });
   } catch (err) {
     if (err instanceof z.ZodError) {

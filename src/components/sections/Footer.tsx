@@ -1,6 +1,6 @@
 "use client";
 
-import { Copy, KeyRound } from "lucide-react";
+import { ArrowUp, Copy, KeyRound } from "lucide-react";
 import { toast } from "sonner";
 import Magnetic from "@/components/motion/Magnetic";
 import Reveal from "@/components/motion/Reveal";
@@ -78,15 +78,31 @@ export default function Footer({
                 <span className="text-foreground">Framer Motion</span> &{" "}
                 <span className="text-foreground">Tailwind CSS</span>.
               </p>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onOpenAdmin}
-                className="gap-1.5 text-xs text-muted-foreground/70 transition-colors hover:text-primary"
-              >
-                <KeyRound className="h-3.5 w-3.5" aria-hidden />
-                Owner access
-              </Button>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    const lenis = (window as unknown as { __lenis?: { scrollTo: (t: number, o?: object) => void } }).__lenis;
+                    if (lenis) lenis.scrollTo(0, { duration: 1.2 });
+                    else window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                  className="gap-1.5 text-xs text-muted-foreground/70 transition-colors hover:text-primary"
+                  aria-label="Back to top"
+                >
+                  <ArrowUp className="h-3.5 w-3.5" aria-hidden />
+                  Top
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onOpenAdmin}
+                  className="gap-1.5 text-xs text-muted-foreground/70 transition-colors hover:text-primary"
+                >
+                  <KeyRound className="h-3.5 w-3.5" aria-hidden />
+                  Owner access
+                </Button>
+              </div>
             </div>
           </div>
         </Reveal>

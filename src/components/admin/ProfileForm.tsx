@@ -1,14 +1,30 @@
 "use client";
 
 import {
+  useEffect,
+  useMemo,
   useRef,
   useState,
   type ChangeEvent,
   type FormEvent,
 } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { AnimatePresence, motion } from "framer-motion";
 import { toast } from "sonner";
-import { ImagePlus, Loader2, Plus, Save, UserRound, X } from "lucide-react";
+import {
+  AlertCircle,
+  ChevronDown,
+  ChevronUp,
+  ImagePlus,
+  Info,
+  Loader2,
+  Plus,
+  RotateCcw,
+  Save,
+  Share2,
+  UserRound,
+  X,
+} from "lucide-react";
 import type { ProfileData, SocialLink } from "@/types/portfolio";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -121,8 +137,27 @@ function ProfileEditor({ profile }: { profile: ProfileData }) {
   const [form, setForm] = useState<FormState>(() => hydrateForm(profile));
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  const initialSnapshot = useMemo(() => JSON.stringify(hydrateForm(profile)), [profile]);
+  const isDirty = useMemo(() => JSON.stringify(form) !== initialSnapshot, [form, initialSnapshot]);
+
+  // warn before leaving with unsaved edits
+  useEffect(() => {
+    if (!isDirty) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [isDirty]);
+
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
+
+  const discard = () => {
+    setForm(hydrateForm(profile));
+    setErrors({});
+    toast.info("Changes discarded");
+  };
 
   const save = useMutation({
     mutationFn: (payload: Partial<ProfileData>) =>
@@ -209,13 +244,25 @@ function ProfileEditor({ profile }: { profile: ProfileData }) {
       form.socials.map((s, idx) => (idx === i ? { ...s, ...patch } : s))
     );
 
+  const moveSocial = (i: number, dir: -1 | 1) => {
+    const target = i + dir;
+    if (target < 0 || target >= form.socials.length) return;
+    const next = [...form.socials];
+    [next[i], next[target]] = [next[target], next[i]];
+    set("socials", next);
+  };
+
   const fileRef = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+    <form ref={formRef} onSubmit={handleSubmit} className="space-y-6" noValidate>
       {/* Photo */}
       <section className="rounded-xl border border-border bg-card p-6">
-        <h2 className="text-sm font-semibold">Photo</h2>
+        <div className="flex items-center gap-2">
+          <ImagePlus className="size-4 text-primary" aria-hidden />
+          <h2 className="text-sm font-semibold">Photo</h2>
+        </div>
         <p className="mt-1 text-xs text-muted-foreground">
           Square crop, scaled to 512×512 JPEG. Shown in the hero and about sections.
         </p>
@@ -263,7 +310,10 @@ function ProfileEditor({ profile }: { profile: ProfileData }) {
 
       {/* Basics */}
       <section className="rounded-xl border border-border bg-card p-6">
-        <h2 className="text-sm font-semibold">Basics</h2>
+        <div className="flex items-center gap-2">
+          <UserRound className="size-4 text-primary" aria-hidden />
+          <h2 className="text-sm font-semibold">Basics</h2>
+        </div>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <Field label="Name" htmlFor="pf-name" error={errors.name}>
             <Input
@@ -342,7 +392,10 @@ function ProfileEditor({ profile }: { profile: ProfileData }) {
 
       {/* About */}
       <section className="rounded-xl border border-border bg-card p-6">
-        <h2 className="text-sm font-semibold">About</h2>
+        <div className="flex items-center gap-2">
+          <Info className="size-4 text-primary" aria-hidden />
+          <h2 className="text-sm font-semibold">About</h2>
+        </div>
         <div className="mt-4 space-y-4">
           <Field label="Bio" htmlFor="pf-bio">
             <Textarea
@@ -382,9 +435,12 @@ function ProfileEditor({ profile }: { profile: ProfileData }) {
       <section className="rounded-xl border border-border bg-card p-6">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-sm font-semibold">Social links</h2>
+            <div className="flex items-center gap-2">
+              <Share2 className="size-4 text-primary" aria-hidden />
+              <h2 className="text-sm font-semibold">Social links</h2>
+            </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              Rendered as icon links across the site.
+              Rendered as icon links across the site — order matches the hero.
             </p>
           </div>
           <Button
@@ -440,21 +496,43 @@ function ProfileEditor({ profile }: { profile: ProfileData }) {
                     ))}
                   </SelectContent>
                 </Select>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="justify-self-end text-muted-foreground hover:text-destructive"
-                  onClick={() =>
-                    set(
-                      "socials",
-                      form.socials.filter((_, idx) => idx !== i)
-                    )
-                  }
-                  aria-label={`Remove social ${i + 1}`}
-                >
-                  <X className="size-4" aria-hidden />
-                </Button>
+                <div className="flex items-center gap-1 justify-self-end">
+                  <div className="hidden flex-col sm:flex" aria-hidden>
+                    <button
+                      type="button"
+                      onClick={() => moveSocial(i, -1)}
+                      disabled={i === 0}
+                      className="flex h-4 w-6 items-center justify-center rounded text-muted-foreground hover:text-foreground disabled:opacity-25"
+                      aria-label="Move social up"
+                    >
+                      <ChevronUp className="size-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveSocial(i, 1)}
+                      disabled={i === form.socials.length - 1}
+                      className="flex h-4 w-6 items-center justify-center rounded text-muted-foreground hover:text-foreground disabled:opacity-25"
+                      aria-label="Move social down"
+                    >
+                      <ChevronDown className="size-3.5" />
+                    </button>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-8 text-muted-foreground hover:text-destructive"
+                    onClick={() =>
+                      set(
+                        "socials",
+                        form.socials.filter((_, idx) => idx !== i)
+                      )
+                    }
+                    aria-label={`Remove social ${i + 1}`}
+                  >
+                    <X className="size-4" aria-hidden />
+                  </Button>
+                </div>
               </div>
             ))
           )}
@@ -464,6 +542,12 @@ function ProfileEditor({ profile }: { profile: ProfileData }) {
       <Separator />
 
       <div className="flex items-center justify-end gap-3">
+        {isDirty ? (
+          <Button type="button" variant="ghost" onClick={discard} className="text-muted-foreground">
+            <RotateCcw className="size-4" aria-hidden />
+            Discard
+          </Button>
+        ) : null}
         <Button type="submit" disabled={save.isPending}>
           {save.isPending ? (
             <>
@@ -478,6 +562,45 @@ function ProfileEditor({ profile }: { profile: ProfileData }) {
           )}
         </Button>
       </div>
+
+      {/* Sticky unsaved-changes bar (mobile-friendly) */}
+      <AnimatePresence>
+        {isDirty ? (
+          <motion.div
+            initial={{ y: 80, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 80, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 320, damping: 30 }}
+            className="fixed inset-x-4 bottom-4 z-50 mx-auto flex max-w-md items-center gap-3 rounded-full border border-border bg-card/95 py-2 pl-4 pr-2 shadow-xl backdrop-blur sm:bottom-6"
+            role="status"
+          >
+            <AlertCircle className="size-4 shrink-0 text-amber-500" aria-hidden />
+            <p className="min-w-0 flex-1 truncate text-sm font-medium">Unsaved changes</p>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={discard}
+              className="shrink-0 text-muted-foreground"
+            >
+              Discard
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => formRef.current?.requestSubmit()}
+              disabled={save.isPending}
+              className="shrink-0"
+            >
+              {save.isPending ? (
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+              ) : (
+                "Save"
+              )}
+            </Button>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </form>
   );
 }

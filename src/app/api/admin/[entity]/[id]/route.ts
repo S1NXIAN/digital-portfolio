@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { isAuthed, unauthorized } from "@/lib/admin-auth";
+import { invalidatePortfolioCache } from "@/lib/portfolio-cache";
 import { skillIconSchema } from "@/lib/skill-icon-schema";
 
 export const dynamic = "force-dynamic";
@@ -32,6 +33,7 @@ const entities = {
     description: z.string().optional(),
     url: z.string().url("Must be a valid URL").optional(),
     language: z.string().optional(),
+    topics: z.string().optional(),
     stars: z.coerce.number().int().min(0).optional(),
     forks: z.coerce.number().int().min(0).optional(),
     featured: z.coerce.boolean().optional(),
@@ -62,6 +64,7 @@ export async function PUT(
     const data = cfg.schema.parse(await req.json());
     const delegate = db[cfg.delegate] as unknown as LooseDelegate;
     const item = await delegate.update({ where: { id }, data });
+    invalidatePortfolioCache();
     return Response.json({ item });
   } catch (err) {
     if (err instanceof z.ZodError) {
@@ -83,6 +86,7 @@ export async function DELETE(
   try {
     const delegate = db[cfg.delegate] as unknown as LooseDelegate;
     await delegate.delete({ where: { id } });
+    invalidatePortfolioCache();
     return Response.json({ ok: true });
   } catch (err) {
     console.error(`${entity} DELETE failed`, err);

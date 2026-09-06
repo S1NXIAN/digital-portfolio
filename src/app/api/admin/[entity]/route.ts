@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { isAuthed, unauthorized } from "@/lib/admin-auth";
+import { invalidatePortfolioCache } from "@/lib/portfolio-cache";
 import { skillIconSchema } from "@/lib/skill-icon-schema";
 
 export const dynamic = "force-dynamic";
@@ -34,6 +35,7 @@ const entities = {
     description: z.string().default(""),
     url: z.string().url("Must be a valid URL"),
     language: z.string().default(""),
+    topics: z.string().default(""),
     stars: z.coerce.number().int().min(0).default(0),
     forks: z.coerce.number().int().min(0).default(0),
     featured: z.coerce.boolean().default(true),
@@ -71,6 +73,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ entity: string
     const data = cfg.schema.parse(await req.json());
     const delegate = db[cfg.delegate] as unknown as LooseDelegate;
     const item = await delegate.create({ data });
+    invalidatePortfolioCache();
     return Response.json({ item });
   } catch (err) {
     if (err instanceof z.ZodError) {

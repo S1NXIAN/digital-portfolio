@@ -55,12 +55,20 @@ export default function Experience({ experiences }: { experiences: ExperienceDat
                 <Reveal delay={i * 0.06}>
                   <article className="group rounded-2xl border border-border/60 bg-card/60 p-6 backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xl hover:shadow-primary/[0.05] sm:p-7">
                     <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <h3 className="text-lg font-semibold tracking-tight sm:text-xl">
-                          {exp.role}
-                          <span className="text-primary"> · {exp.company}</span>
-                        </h3>
-                        <p className="mt-1 font-mono text-xs text-muted-foreground">{exp.period}</p>
+                      <div className="flex min-w-0 items-center gap-3.5">
+                        <span
+                          className="flex h-11 w-11 shrink-0 select-none items-center justify-center rounded-xl border border-border/60 bg-primary/10 text-base font-bold text-primary transition-transform duration-300 group-hover:scale-105"
+                          aria-hidden
+                        >
+                          {exp.company.trim().charAt(0).toUpperCase() || "•"}
+                        </span>
+                        <div className="min-w-0">
+                          <h3 className="text-lg font-semibold tracking-tight sm:text-xl">
+                            {exp.role}
+                            <span className="text-primary"> · {exp.company}</span>
+                          </h3>
+                          <p className="mt-1 font-mono text-xs text-muted-foreground">{exp.period}</p>
+                        </div>
                       </div>
                       {exp.current ? (
                         <Badge className="gap-1.5 rounded-full bg-primary/15 text-primary hover:bg-primary/15">
@@ -78,7 +86,7 @@ export default function Experience({ experiences }: { experiences: ExperienceDat
                       )}
                     </div>
 
-                    <p className="mt-4 leading-relaxed text-muted-foreground">{exp.description}</p>
+                    <ExperienceDescription description={exp.description} />
 
                     {exp.tech ? (
                       <ul className="mt-4 flex flex-wrap gap-1.5" aria-label="Technologies used">
@@ -104,5 +112,54 @@ export default function Experience({ experiences }: { experiences: ExperienceDat
         </div>
       </div>
     </section>
+  );
+}
+
+/**
+ * Renders the description: lines that start with "-", "*" or "•" become a
+ * styled bullet list; the remaining lines render as paragraphs.
+ */
+function ExperienceDescription({ description }: { description: string }) {
+  const content = (description ?? "").replace(/\r\n/g, "\n").trim();
+  if (!content) return null;
+
+  const lines = content.split("\n");
+  const bullets: string[] = [];
+  const paragraphs: string[] = [];
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) continue;
+    const bullet = line.match(/^(?:[-•*]\s+)(.+)$/);
+    if (bullet) bullets.push(bullet[1]);
+    else paragraphs.push(line);
+  }
+
+  if (bullets.length === 0) {
+    return <p className="mt-4 leading-relaxed text-muted-foreground">{content}</p>;
+  }
+
+  return (
+    <div className="mt-4">
+      {paragraphs.length > 0 ? (
+        <div className="space-y-2">
+          {paragraphs.map((p, i) => (
+            <p key={i} className="leading-relaxed text-muted-foreground">
+              {p}
+            </p>
+          ))}
+        </div>
+      ) : null}
+      <ul className="space-y-2">
+        {bullets.map((b, i) => (
+          <li key={i} className="flex items-start gap-2.5 text-muted-foreground">
+            <span
+              className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-primary/70"
+              aria-hidden
+            />
+            <span className="leading-relaxed">{b}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

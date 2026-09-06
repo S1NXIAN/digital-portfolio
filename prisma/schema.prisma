@@ -52,6 +52,7 @@ model Repo {
   description String
   url         String
   language    String  @default("")
+  topics      String  @default("") // comma separated, e.g. "react, ai, cli"
   stars       Int     @default(0)
   forks       Int     @default(0)
   featured    Boolean @default(true)

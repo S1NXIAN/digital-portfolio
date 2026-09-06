@@ -27,8 +27,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { api } from "./lib";
-import { ConfirmDeleteDialog, EmptyState, Field, ManagerError, ManagerLoading } from "./ManagerStates";
+import {
+  ConfirmDeleteDialog,
+  EmptyState,
+  Field,
+  ManagerError,
+  ManagerLoading,
+  ManagerToolbar,
+  ReorderButtons,
+} from "./ManagerStates";
 import IconPicker from "./IconPicker";
+import { moveInList, usePersistedReorder } from "./use-reorder";
 
 const CATEGORIES = ["Languages", "Frontend", "Backend", "DevOps & Cloud", "Tools"];
 
@@ -95,6 +104,22 @@ export default function SkillsManager() {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  const [search, setSearch] = useState("");
+  const allItems = data?.items ?? [];
+  const needle = search.trim().toLowerCase();
+  const items = needle
+    ? allItems.filter(
+        (s) =>
+          s.name.toLowerCase().includes(needle) || s.category.toLowerCase().includes(needle)
+      )
+    : allItems;
+  const visibleIds = items.map((s) => s.id);
+  const { persist } = usePersistedReorder("skills", ["admin", "skills"]);
+  const onMove = (visibleIndex: number, dir: -1 | 1) => {
+    const next = moveInList(allItems, visibleIds, visibleIndex, dir);
+    if (next) persist(next, items[visibleIndex]?.name, dir);
+  };
+
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
@@ -124,26 +149,32 @@ export default function SkillsManager() {
       />
     );
 
-  const items = data?.items ?? [];
-
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">
-          {items.length} skill{items.length === 1 ? "" : "s"} — powers the stack
-          marquee and the Skills section.
-        </p>
+      <ManagerToolbar
+        search={search}
+        onSearch={setSearch}
+        searchPlaceholder="Search skills or categories…"
+        count={items.length}
+        totalCount={allItems.length}
+      >
         <Button size="sm" onClick={openAdd}>
           <Plus className="size-4" aria-hidden />
           Add skill
         </Button>
-      </div>
+      </ManagerToolbar>
 
       {items.length === 0 ? (
-        <EmptyState message="No skills yet. Add your first skill to get started." />
+        <EmptyState
+          message={
+            allItems.length === 0
+              ? "No skills yet. Add your first skill to get started."
+              : `No skills match “${search}”.`
+          }
+        />
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
-          {items.map((skill) => (
+          {items.map((skill, index) => (
             <div
               key={skill.id}
               className="rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/40"
@@ -166,6 +197,11 @@ export default function SkillsManager() {
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
+                  <ReorderButtons
+                    onMove={onMove}
+                    index={index}
+                    total={items.length}
+                  />
                   <Button
                     variant="ghost"
                     size="icon"

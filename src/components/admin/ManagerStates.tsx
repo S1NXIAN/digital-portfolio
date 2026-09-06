@@ -1,8 +1,9 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Search, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Label } from "@/components/ui/label";
 import {
@@ -123,6 +124,84 @@ export function EmptyState({ message }: { message: string }) {
   return (
     <div className="rounded-xl border border-dashed border-border bg-card/50 p-10 text-center text-sm text-muted-foreground">
       {message}
+    </div>
+  );
+}
+
+/** Search + count header with a right-hand slot (usually the Add button). */
+export function ManagerToolbar({
+  search,
+  onSearch,
+  searchPlaceholder = "Search…",
+  count,
+  totalCount,
+  children,
+}: {
+  search: string;
+  onSearch: (value: string) => void;
+  searchPlaceholder?: string;
+  count: number;
+  totalCount: number;
+  children?: ReactNode;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2.5">
+      <div className="relative min-w-0 flex-1 sm:max-w-xs">
+        <Search
+          className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+          aria-hidden
+        />
+        <Input
+          type="search"
+          value={search}
+          onChange={(e) => onSearch(e.target.value)}
+          placeholder={searchPlaceholder}
+          className="pl-8"
+          aria-label={searchPlaceholder}
+        />
+      </div>
+      <span className="text-xs text-muted-foreground tabular-nums" aria-live="polite">
+        {count === totalCount ? `${totalCount} item${totalCount === 1 ? "" : "s"}` : `${count} / ${totalCount}`}
+      </span>
+      <div className="ml-auto flex items-center gap-2">{children}</div>
+    </div>
+  );
+}
+
+/** Up/down reorder arrows; wire to a move handler that persists the new order. */
+export function ReorderButtons({
+  onMove,
+  index,
+  total,
+  disabled,
+}: {
+  onMove: (index: number, dir: -1 | 1) => void;
+  index: number;
+  total: number;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="flex items-center" role="group" aria-label="Reorder">
+      <Button
+        variant="ghost"
+        size="icon"
+        className="size-7 text-muted-foreground disabled:opacity-25"
+        onClick={() => onMove(index, -1)}
+        disabled={disabled || index === 0}
+        aria-label="Move up"
+      >
+        <ChevronUp className="size-4" aria-hidden />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="size-7 text-muted-foreground disabled:opacity-25"
+        onClick={() => onMove(index, 1)}
+        disabled={disabled || index === total - 1}
+        aria-label="Move down"
+      >
+        <ChevronDown className="size-4" aria-hidden />
+      </Button>
     </div>
   );
 }

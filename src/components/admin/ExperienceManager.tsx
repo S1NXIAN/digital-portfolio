@@ -20,7 +20,16 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "./lib";
-import { ConfirmDeleteDialog, EmptyState, Field, ManagerError, ManagerLoading } from "./ManagerStates";
+import {
+  ConfirmDeleteDialog,
+  EmptyState,
+  Field,
+  ManagerError,
+  ManagerLoading,
+  ManagerToolbar,
+  ReorderButtons,
+} from "./ManagerStates";
+import { moveInList, usePersistedReorder } from "./use-reorder";
 
 export default function ExperienceManager() {
   const queryClient = useQueryClient();
@@ -90,6 +99,26 @@ export default function ExperienceManager() {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  const [search, setSearch] = useState("");
+  const allItems = data?.items ?? [];
+  const needle = search.trim().toLowerCase();
+  const items = needle
+    ? allItems.filter(
+        (x) =>
+          x.company.toLowerCase().includes(needle) ||
+          x.role.toLowerCase().includes(needle) ||
+          x.period.toLowerCase().includes(needle) ||
+          (x.tech ?? "").toLowerCase().includes(needle)
+      )
+    : allItems;
+  const visibleIds = items.map((x) => x.id);
+  const { persist } = usePersistedReorder("experiences", ["admin", "experiences"]);
+  const onMove = (visibleIndex: number, dir: -1 | 1) => {
+    const next = moveInList(allItems, visibleIds, visibleIndex, dir);
+    const it = items[visibleIndex];
+    if (next && it) persist(next, `${it.role} @ ${it.company}`, dir);
+  };
+
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (!company.trim() || !role.trim() || !period.trim()) {
@@ -112,25 +141,32 @@ export default function ExperienceManager() {
   if (isError)
     return <ManagerError message="Could not load experiences." onRetry={() => refetch()} />;
 
-  const items = data?.items ?? [];
-
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">
-          {items.length} position{items.length === 1 ? "" : "s"} — shown on the timeline.
-        </p>
+      <ManagerToolbar
+        search={search}
+        onSearch={setSearch}
+        searchPlaceholder="Search roles, companies, tech…"
+        count={items.length}
+        totalCount={allItems.length}
+      >
         <Button size="sm" onClick={openAdd}>
           <Plus className="size-4" aria-hidden />
           Add experience
         </Button>
-      </div>
+      </ManagerToolbar>
 
       {items.length === 0 ? (
-        <EmptyState message="No experience entries yet. Add your first role." />
+        <EmptyState
+          message={
+            allItems.length === 0
+              ? "No experience entries yet. Add your first role."
+              : `No positions match “${search}”.`
+          }
+        />
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
-          {items.map((item) => (
+          {items.map((item, index) => (
             <div
               key={item.id}
               className="flex flex-col rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/40"
@@ -155,6 +191,11 @@ export default function ExperienceManager() {
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
+                  <ReorderButtons
+                    onMove={onMove}
+                    index={index}
+                    total={items.length}
+                  />
                   <Button
                     variant="ghost"
                     size="icon"
