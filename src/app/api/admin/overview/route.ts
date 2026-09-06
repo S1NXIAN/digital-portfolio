@@ -31,11 +31,11 @@ export async function GET(req: Request) {
       _sum: { count: true },
     });
 
-    // Database storage size via PostgreSQL
+    // Database storage size (SQLite: page_count × page_size)
     let dbSizeBytes = 0;
     try {
       const rows = await db.$queryRawUnsafe<{ size: bigint | number | string }[]>(
-        "SELECT pg_database_size(current_database()) AS size"
+        "SELECT pc.page_count * ps.page_size AS size FROM pragma_page_count pc, pragma_page_size ps"
       );
       dbSizeBytes = Number(rows?.[0]?.size ?? 0);
     } catch (err) {
