@@ -1,0 +1,82 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Single-row profile (id = "main")
+model Profile {
+  id              String   @id @default("main")
+  name            String   @default("Your Name")
+  headline        String   @default("Software Engineer")
+  bio             String   @default("")
+  motto           String   @default("")
+  photoUrl        String   @default("/avatar.png")
+  location        String   @default("")
+  email           String   @default("")
+  resumeUrl       String   @default("")
+  yearsExperience Int      @default(0)
+  availability    String   @default("Open to work")
+  githubUsername  String   @default("")
+  socials         Json     @default("[]") // [{ label, url, icon }]
+  rotatingWords   Json     @default("[]") // ["Full-Stack Dev", ...]
+  updatedAt       DateTime @updatedAt
+}
+
+model Skill {
+  id       String @id @default(cuid())
+  name     String
+  category String
+  level    Int    @default(80) // 0 - 100
+  order    Int    @default(0)
+  icon     String @default("") // "" = auto-match from name; "https://..." = custom URL; otherwise dashboardicons.com slug
+}
+
+model Experience {
+  id          String  @id @default(cuid())
+  company     String
+  role        String
+  period      String // e.g. "2022 — Present"
+  description String
+  tech        String  @default("") // comma separated
+  current     Boolean @default(false)
+  order       Int     @default(0)
+}
+
+model Repo {
+  id          String  @id @default(cuid())
+  name        String
+  description String
+  url         String
+  language    String  @default("")
+  stars       Int     @default(0)
+  forks       Int     @default(0)
+  featured    Boolean @default(true)
+  order       Int     @default(0)
+}
+
+model KnowledgeItem {
+  id          String @id @default(cuid())
+  title       String
+  description String
+  category    String
+  icon        String @default("Sparkles") // lucide icon name
+  order       Int    @default(0)
+}
+
+// GitHub activity heatmap — date is "YYYY-MM-DD" (local tz of the owner)
+// Public commits are synced in; private commits can be added/adjusted manually.
+model Contribution {
+  date      String   @id
+  count     Int      @default(0)
+  note      String   @default("")
+  updatedAt DateTime @updatedAt
+}
+
+model Setting {
+  key   String @id
+  value String
+}

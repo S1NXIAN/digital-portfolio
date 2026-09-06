@@ -1,0 +1,135 @@
+"use client";
+
+import {
+  BookOpen,
+  Brain,
+  Code2,
+  CloudCog,
+  Cpu,
+  Database,
+  FlaskConical,
+  Gauge,
+  GitBranch,
+  Layers,
+  Network,
+  Rocket,
+  ShieldCheck,
+  Sparkles,
+  Terminal,
+  Wrench,
+  type LucideIcon,
+} from "lucide-react";
+import Counter from "@/components/motion/Counter";
+import Reveal from "@/components/motion/Reveal";
+import Tilt from "@/components/motion/Tilt";
+import SectionHeading from "@/components/sections/SectionHeading";
+import { Badge } from "@/components/ui/badge";
+import type { KnowledgeData, ProfileData } from "@/types/portfolio";
+
+const KNOWLEDGE_ICONS: Record<string, LucideIcon> = {
+  Sparkles,
+  Brain,
+  Code2,
+  CloudCog,
+  Cpu,
+  Database,
+  FlaskConical,
+  Gauge,
+  GitBranch,
+  Layers,
+  Network,
+  Rocket,
+  ShieldCheck,
+  Terminal,
+  Wrench,
+  BookOpen,
+};
+
+export default function About({
+  profile,
+  knowledge,
+  skillCount,
+  repoCount,
+  totalCommits,
+}: {
+  profile: ProfileData;
+  knowledge: KnowledgeData[];
+  skillCount: number;
+  repoCount: number;
+  totalCommits: number;
+}) {
+  const stats = [
+    { value: profile.yearsExperience, suffix: "+", label: "Years experience" },
+    { value: totalCommits, suffix: "", label: "Commits (12 mo)" },
+    { value: skillCount, suffix: "", label: "Technologies" },
+    { value: repoCount, suffix: "", label: "Featured repos" },
+  ];
+
+  return (
+    <section id="about" className="relative py-24 sm:py-28" aria-label="About and knowledge">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        <SectionHeading
+          eyebrow="01 — about"
+          title="What I do, and how I think"
+          description="A quick snapshot of the craft behind the commits."
+        />
+
+        <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {stats.map((stat, i) => (
+            <Reveal key={stat.label} delay={i * 0.08}>
+              <div className="sheen group rounded-2xl border border-border/60 bg-card/60 p-5 backdrop-blur transition-colors duration-300 hover:border-primary/40">
+                <p className="text-3xl font-bold tabular-nums sm:text-4xl">
+                  <Counter value={stat.value} />
+                  <span className="text-primary">{stat.suffix}</span>
+                </p>
+                <p className="mt-1.5 text-sm text-muted-foreground">{stat.label}</p>
+              </div>
+            </Reveal>
+          ))}
+        </div>
+
+        {profile.bio ? (
+          <Reveal delay={0.1} className="mt-14 max-w-3xl">
+            <p className="text-lg leading-relaxed text-muted-foreground sm:text-xl">{profile.bio}</p>
+          </Reveal>
+        ) : null}
+
+        {knowledge.length > 0 ? (
+          <div className="mt-16">
+            <Reveal>
+              <h3 className="flex items-center gap-2 text-xl font-semibold tracking-tight">
+                <Sparkles className="h-5 w-5 text-primary" aria-hidden />
+                Areas of knowledge
+              </h3>
+            </Reveal>
+            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {knowledge.map((item, i) => {
+                const Icon = KNOWLEDGE_ICONS[item.icon] ?? Sparkles;
+                return (
+                  <Reveal key={item.id} delay={(i % 3) * 0.08}>
+                    <Tilt max={7} className="h-full">
+                      <article className="group flex h-full flex-col rounded-2xl border border-border/60 bg-card/60 p-5 backdrop-blur transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-xl hover:shadow-primary/[0.06]">
+                        <div className="flex items-center justify-between">
+                          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
+                            <Icon className="h-5 w-5" aria-hidden />
+                          </span>
+                          <Badge variant="secondary" className="font-mono text-[10px] uppercase tracking-wider">
+                            {item.category}
+                          </Badge>
+                        </div>
+                        <h4 className="mt-4 font-semibold tracking-tight">{item.title}</h4>
+                        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                          {item.description}
+                        </p>
+                      </article>
+                    </Tilt>
+                  </Reveal>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </section>
+  );
+}

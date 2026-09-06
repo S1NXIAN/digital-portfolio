@@ -1,0 +1,54 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+#
+# Deploy: push this repo to GitHub → Render → New → Blueprint → pick the repo.
+# Or one-click: https://render.com/deploy?repo=<your-repo-url>
+#
+# Notes
+# - SQLite is file-based. The free plan has EPHEMERAL storage: the database
+#   resets on every deploy/restart. The built-in self-pinger (SELF_PING_ENABLED)
+#   prevents idle spin-downs, which covers the common data-loss case.
+#   For a persistent DB upgrade `plan` to `starter` and add a disk, e.g.:
+#       plan: starter
+#       disks:
+#         - name: portfolio-data
+#           mountPath: /app/data
+#           sizeGB: 1
+#   …and change DATABASE_URL to file:/app/data/custom.db
+# - Set GITHUB_TOKEN in the Render dashboard after the first deploy (sync: false
+#   keeps it out of this file). It enables heatmap sync including private commits.
+
+services:
+  - type: web
+    name: digital-portfolio
+    runtime: node
+    plan: free
+    region: singapore
+    branch: main
+    autoDeploy: true
+    healthCheckPath: /api
+    # Bun drives install/build (bun.lock is the source of truth); the output is
+    # a standard Next.js standalone server started below.
+    buildCommand: |
+      npm install -g bun@1
+      bun install --frozen-lockfile
+      mkdir -p /opt/render/project/src/db
+      bunx prisma generate
+      bunx prisma db push
+      bun run build
+      bun run scripts/seed.ts
+    startCommand: NODE_ENV=production bun .next/standalone/server.js
+    envVars:
+      - key: DATABASE_URL
+        # Absolute path — relative file: URLs break under Next standalone output.
+        value: file:/opt/render/project/src/db/custom.db
+      - key: NODE_ENV
+        value: production
+      # Keep-alive — prevents free-tier idle spin-down. Toggle by flipping to "false".
+      - key: SELF_PING_ENABLED
+        value: "true"
+      - key: SELF_PING_INTERVAL_MIN
+        value: "10"
+      # GitHub contributions sync (incl. private commits). Set the real value in
+      # the Render dashboard → Environment after first deploy.
+      - key: GITHUB_TOKEN
+        sync: false

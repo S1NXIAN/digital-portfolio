@@ -1,0 +1,106 @@
+"use client";
+
+import { useMemo } from "react";
+import { motion } from "framer-motion";
+import Reveal from "@/components/motion/Reveal";
+import SectionHeading from "@/components/sections/SectionHeading";
+import StackIcon from "@/components/StackIcon";
+import type { SkillData } from "@/types/portfolio";
+
+/** Categories with more than this many skills render in a denser 2-column grid. */
+const COMPACT_THRESHOLD = 8;
+
+export default function Skills({ skills }: { skills: SkillData[] }) {
+  const grouped = useMemo(() => {
+    const map = new Map<string, SkillData[]>();
+    for (const skill of skills) {
+      const list = map.get(skill.category) ?? [];
+      list.push(skill);
+      map.set(skill.category, list);
+    }
+    return Array.from(map.entries());
+  }, [skills]);
+
+  return (
+    <section id="skills" className="relative py-24 sm:py-28" aria-label="Skills">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        <SectionHeading
+          eyebrow="02 — stack"
+          title="Tools of the trade"
+          description="Depth where it matters, breadth where it helps — proficiency is honest, not aspirational."
+        />
+
+        {/*
+          Masonry layout (CSS multi-column): every card keeps its natural height
+          and the browser balances the columns, so heavily imbalanced categories
+          (e.g. 18 languages vs 5 frontend) never stretch or leave dead space.
+        */}
+        <div className="mt-12 columns-1 gap-5 md:columns-2">
+          {grouped.map(([category, items], gi) => {
+            const compact = items.length > COMPACT_THRESHOLD;
+            return (
+              <Reveal
+                key={category}
+                delay={Math.min(gi * 0.08, 0.4)}
+                className="mb-5 break-inside-avoid"
+              >
+                <div className="@container rounded-2xl border border-border/60 bg-card/60 p-6 backdrop-blur transition-colors duration-300 hover:border-primary/30">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-mono text-xs font-semibold uppercase tracking-[0.2em] text-primary">
+                      {category}
+                    </h3>
+                    <span className="rounded-full bg-muted px-2.5 py-0.5 text-[11px] text-muted-foreground">
+                      {items.length} skills
+                    </span>
+                  </div>
+                  <ul
+                    className={
+                      compact
+                        ? "mt-4 grid grid-cols-1 gap-x-8 gap-y-4 @md:grid-cols-2"
+                        : "mt-5 space-y-4"
+                    }
+                  >
+                    {items.map((skill, i) => (
+                      <li key={skill.id}>
+                        <div className="flex items-baseline justify-between gap-3">
+                          <span className="flex items-center gap-2 text-sm font-medium">
+                            <StackIcon
+                              name={skill.name}
+                              icon={skill.icon}
+                              className="size-4 shrink-0"
+                            />
+                            {skill.name}
+                          </span>
+                          <span className="font-mono text-xs tabular-nums text-muted-foreground">
+                            {skill.level}%
+                          </span>
+                        </div>
+                        <div
+                          className={`mt-1.5 overflow-hidden rounded-full bg-muted ${
+                            compact ? "h-1" : "h-1.5"
+                          }`}
+                        >
+                          <motion.div
+                            className="h-full rounded-full bg-gradient-to-r from-primary/60 to-primary"
+                            initial={{ width: 0 }}
+                            whileInView={{ width: `${skill.level}%` }}
+                            viewport={{ once: true, margin: "-40px" }}
+                            transition={{
+                              duration: 1.1,
+                              delay: Math.min(0.15 + i * 0.07, 0.9),
+                              ease: [0.22, 1, 0.36, 1],
+                            }}
+                          />
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </Reveal>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
