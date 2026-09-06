@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useScroll, useTransform } from "framer-motion";
 import { ArrowDown, ArrowUpRight, Copy, Download, MapPin } from "lucide-react";
 import { toast } from "sonner";
@@ -9,27 +9,99 @@ import { SocialIcon } from "@/components/social-icons";
 import { Button } from "@/components/ui/button";
 import type { ProfileData } from "@/types/portfolio";
 
+/** Milliseconds each word stays fully readable before the morph begins. */
+const ROTATE_INTERVAL = 3400;
+/** Holds the box at the wider word until the outgoing word has left. */
+const MORPH_TAIL_MS = 600;
+
 function RotatingWords({ words }: { words: string[] }) {
   const list = words.length > 0 ? words : ["Software Engineer"];
   const [index, setIndex] = useState(0);
+  const [width, setWidth] = useState<number>();
+  const measureRef = useRef<HTMLSpanElement>(null);
+  const targetRef = useRef<number>();
+  const prevTargetRef = useRef<number>();
+  const morphingRef = useRef(false);
+  const tailTimer = useRef<ReturnType<typeof setTimeout>>(null);
 
+  useEffect(() => () => clearTimeout(tailTimer.current), []);
+
+  // Balanced cadence: ~2.85s of readable dwell + a ~0.55s overlapping morph.
   useEffect(() => {
-    const t = setInterval(() => setIndex((i) => (i + 1) % list.length), 2600);
+    if (list.length < 2) return;
+    const t = setInterval(() => setIndex((i) => (i + 1) % list.length), ROTATE_INTERVAL);
     return () => clearInterval(t);
   }, [list.length]);
 
+  // Keep the current word's natural width on file; follow it live (resize,
+  // font swap) unless a morph is holding the box wide on purpose.
+  useEffect(() => {
+    const el = measureRef.current;
+    if (!el) return;
+    const measure = () => {
+      const w = el.offsetWidth;
+      targetRef.current = w;
+      if (!morphingRef.current) setWidth(w);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [index, words]);
+
+  // The box itself is invisible — its width is only observable through
+  // clipping — so width changes can always be instant. One rule: while two
+  // words are on stage the box must fit the wider one; once the outgoing
+  // word is gone it snaps back down. No tweening, no glyph cuts.
+  useEffect(() => {
+    const next = targetRef.current;
+    const prev = prevTargetRef.current;
+    prevTargetRef.current = next;
+    if (next == null) return;
+    if (prev != null && prev > next) {
+      morphingRef.current = true;
+      setWidth(prev);
+      tailTimer.current = setTimeout(() => {
+        morphingRef.current = false;
+        setWidth(targetRef.current);
+      }, MORPH_TAIL_MS);
+    } else {
+      morphingRef.current = false;
+      setWidth(next);
+    }
+  }, [index]);
+
+  const word = list[index % list.length] ?? list[0];
+
   return (
-    <span className="relative inline-flex h-[1.4em] overflow-hidden align-bottom">
-      <AnimatePresence mode="wait" initial={false}>
+    <span
+      className="relative inline-flex h-[1.4em] max-w-full overflow-hidden align-bottom"
+      style={{ width }}
+    >
+      {/* invisible in-flow measurer gives the container an honest width —
+          it must mirror the word's typography or the box runs narrow */}
+      <span ref={measureRef} aria-hidden className="invisible font-semibold whitespace-nowrap">
+        {word}
+      </span>
+      <AnimatePresence initial={false}>
         <motion.span
           key={index}
-          initial={{ y: "105%", opacity: 0, filter: "blur(6px)" }}
-          animate={{ y: 0, opacity: 1, filter: "blur(0px)" }}
-          exit={{ y: "-105%", opacity: 0, filter: "blur(6px)" }}
-          transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-          className="text-gradient whitespace-nowrap font-semibold"
+          initial={{ y: "110%", opacity: 0, filter: "blur(6px)" }}
+          animate={{ y: "0%", opacity: 1, filter: "blur(0px)" }}
+          exit={{
+            y: "-115%",
+            opacity: 0,
+            filter: "blur(6px)",
+            transition: { duration: 0.4, ease: [0.5, 0, 0.75, 0.5] },
+          }}
+          transition={{
+            y: { type: "spring", stiffness: 210, damping: 27 },
+            opacity: { duration: 0.45, ease: "easeOut" },
+            filter: { duration: 0.55, ease: "easeOut" },
+          }}
+          className="text-gradient absolute inset-0 flex items-center whitespace-nowrap font-semibold"
         >
-          {list[index]}
+          {word}
         </motion.span>
       </AnimatePresence>
     </span>
