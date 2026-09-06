@@ -20,8 +20,6 @@ import {
   Info,
   Loader2,
   Plus,
-  RotateCcw,
-  Save,
   Share2,
   UserRound,
   X,
@@ -39,7 +37,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "./lib";
 import { Field } from "./ManagerStates";
@@ -570,31 +567,8 @@ function ProfileEditor({ profile }: { profile: ProfileData }) {
         </div>
       </section>
 
-      <Separator />
-
-      <div className="flex items-center justify-end gap-3">
-        {isDirty ? (
-          <Button type="button" variant="ghost" onClick={discard} className="text-muted-foreground">
-            <RotateCcw className="size-4" aria-hidden />
-            Discard
-          </Button>
-        ) : null}
-        <Button type="submit" disabled={save.isPending}>
-          {save.isPending ? (
-            <>
-              <Loader2 className="size-4 animate-spin" aria-hidden />
-              Saving…
-            </>
-          ) : (
-            <>
-              <Save className="size-4" aria-hidden />
-              Save
-            </>
-          )}
-        </Button>
-      </div>
-
-      {/* Sticky unsaved-changes bar (mobile-friendly) */}
+      {/* Sticky unsaved-changes bar (mobile-friendly) — the single
+          save/discard surface for this form; no duplicated bottom row. */}
       <AnimatePresence>
         {isDirty ? (
           <motion.div
