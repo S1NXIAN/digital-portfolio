@@ -27,7 +27,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api, todayKey } from "./lib";
 import { ConfirmDeleteDialog, Field, ManagerError } from "./ManagerStates";
@@ -518,7 +517,10 @@ export default function ContributionsManager() {
             No tracked days yet — sync from GitHub or add a day above.
           </p>
         ) : (
-          <ScrollArea className="mt-4 max-h-96 pr-3">
+          // Native scroll container: Radix ScrollArea can't size a viewport
+          // against a max-height-only root, which let rows spill past the
+          // card. A real overflow box clips + scrolls correctly.
+          <div className="mt-4 max-h-96 overflow-y-auto pr-3" data-lenis-prevent>
             <ul className="divide-y divide-border">
               {entries.map((entry) => (
                 <li
@@ -546,7 +548,7 @@ export default function ContributionsManager() {
                 </li>
               ))}
             </ul>
-          </ScrollArea>
+          </div>
         )}
       </section>
     </div>

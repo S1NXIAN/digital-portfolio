@@ -248,21 +248,8 @@ export default function AdminPanel({ onExit }: { onExit: () => void }) {
 }
 
 function AdminHeader({ onExit }: { onExit: () => void }) {
-  const queryClient = useQueryClient();
-  const [loggingOut, setLoggingOut] = useState(false);
-
-  const logout = async () => {
-    setLoggingOut(true);
-    try {
-      await api("/api/admin/login", { method: "DELETE" });
-      await queryClient.invalidateQueries({ queryKey: ["admin", "session"] });
-      toast.success("Logged out");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Logout failed");
-      setLoggingOut(false);
-    }
-  };
-
+  // Exit keeps the session alive — it behaves like "view site": leaving the
+  // console must never force a fresh login on the next visit.
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between gap-3 px-4">
@@ -275,26 +262,10 @@ function AdminHeader({ onExit }: { onExit: () => void }) {
             Owner mode
           </Badge>
         </div>
-        <div className="flex items-center gap-1.5">
-          <Button variant="outline" size="sm" onClick={onExit}>
-            <Eye className="size-4" aria-hidden />
-            View site
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={logout}
-            disabled={loggingOut}
-            className="text-muted-foreground hover:text-destructive"
-            aria-label="Log out"
-          >
-            {loggingOut ? (
-              <Loader2 className="size-4 animate-spin" aria-hidden />
-            ) : (
-              <LogOut className="size-4" aria-hidden />
-            )}
-          </Button>
-        </div>
+        <Button variant="outline" size="sm" onClick={onExit}>
+          <LogOut className="size-4" aria-hidden />
+          Exit
+        </Button>
       </div>
     </header>
   );
