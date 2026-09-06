@@ -126,20 +126,20 @@ export default function OverviewTab({ onNavigate }: { onNavigate: (tab: string) 
             key={s.label}
             type="button"
             onClick={() => onNavigate(s.tab)}
-            className="group rounded-xl border border-border bg-card p-5 text-left transition-all hover:border-primary/40 hover:shadow-sm"
+            className="group flex items-center gap-3.5 rounded-xl border border-border bg-card p-4 text-left transition-all hover:border-primary/40 hover:shadow-sm"
           >
-            <div className="flex items-center justify-between">
-              <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10">
-                <s.icon className="size-4 text-primary" aria-hidden />
-              </div>
-              <ArrowRight
-                className="size-4 text-muted-foreground opacity-0 transition-all group-hover:translate-x-0.5 group-hover:opacity-100"
-                aria-hidden
-              />
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+              <s.icon className="size-4.5 text-primary" aria-hidden />
             </div>
-            <p className="mt-3 text-2xl font-bold tabular-nums">{s.value}</p>
-            <p className="text-sm font-medium">{s.label}</p>
-            <p className="text-xs text-muted-foreground">{s.sub}</p>
+            <div className="min-w-0 flex-1">
+              <p className="text-xl font-bold leading-none tabular-nums">{s.value}</p>
+              <p className="mt-1.5 text-sm font-medium leading-none">{s.label}</p>
+              <p className="mt-1 text-xs leading-snug text-muted-foreground">{s.sub}</p>
+            </div>
+            <ArrowRight
+              className="size-4 shrink-0 text-muted-foreground opacity-0 transition-all group-hover:translate-x-0.5 group-hover:opacity-100"
+              aria-hidden
+            />
           </button>
         ))}
       </div>
@@ -294,7 +294,7 @@ function OverviewSkeleton() {
     <div className="space-y-5" aria-busy="true" aria-live="polite">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} className="h-[132px] rounded-xl" />
+          <Skeleton key={i} className="h-[95px] rounded-xl" />
         ))}
       </div>
       <div className="grid gap-5 lg:grid-cols-2">
