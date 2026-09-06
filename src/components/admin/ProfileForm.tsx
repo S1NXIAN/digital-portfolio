@@ -15,6 +15,7 @@ import {
   AlertCircle,
   ChevronDown,
   ChevronUp,
+  Crop,
   ImagePlus,
   Info,
   Loader2,
@@ -42,6 +43,7 @@ import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "./lib";
 import { Field } from "./ManagerStates";
+import PhotoCropper from "./PhotoCropper";
 
 const SOCIAL_ICONS = [
   "Github",
@@ -136,6 +138,9 @@ function ProfileEditor({ profile }: { profile: ProfileData }) {
 
   const [form, setForm] = useState<FormState>(() => hydrateForm(profile));
   const [errors, setErrors] = useState<Record<string, string>>({});
+  // Source image awaiting the crop dialog (data URL of the picked file,
+  // or the current photo when re-adjusting its crop).
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
 
   const initialSnapshot = useMemo(() => JSON.stringify(hydrateForm(profile)), [profile]);
   const isDirty = useMemo(() => JSON.stringify(form) !== initialSnapshot, [form, initialSnapshot]);
@@ -207,35 +212,28 @@ function ProfileEditor({ profile }: { profile: ProfileData }) {
     });
   };
 
+  /**
+   * Picking a file opens the interactive cropper — the admin decides what
+   * is in frame instead of relying on an automatic center crop.
+   */
   const onPhotoChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = ""; // allow re-selecting the same file
     if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please choose an image file");
+      return;
+    }
     const reader = new FileReader();
     reader.onerror = () => toast.error("Could not read that file");
-    reader.onload = () => {
-      const img = document.createElement("img");
-      img.onerror = () => toast.error("That file is not a valid image");
-      img.onload = () => {
-        const max = 512;
-        const scale = Math.max(max / img.width, max / img.height);
-        const w = Math.round(img.width * scale);
-        const h = Math.round(img.height * scale);
-        const canvas = document.createElement("canvas");
-        canvas.width = max;
-        canvas.height = max;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) {
-          toast.error("Could not process the image");
-          return;
-        }
-        ctx.drawImage(img, (max - w) / 2, (max - h) / 2, w, h); // cover, center-crop
-        set("photoUrl", canvas.toDataURL("image/jpeg", 0.85));
-        toast.success("Photo ready — remember to save");
-      };
-      img.src = reader.result as string;
-    };
+    reader.onload = () => setCropSrc(reader.result as string);
     reader.readAsDataURL(file);
+  };
+
+  const applyCrop = (dataUrl: string) => {
+    set("photoUrl", dataUrl);
+    setCropSrc(null);
+    toast.success("Photo cropped — remember to save");
   };
 
   const updateSocial = (i: number, patch: Partial<SocialLink>) =>
@@ -264,7 +262,7 @@ function ProfileEditor({ profile }: { profile: ProfileData }) {
           <h2 className="text-sm font-semibold">Photo</h2>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
-          Square crop, scaled to 512×512 JPEG. Shown in the hero and about sections.
+          Pick any image, then drag and zoom to frame it exactly how you want — 512×512 JPEG.
         </p>
         <div className="mt-4 flex items-center gap-4">
           <Avatar className="h-20 w-20 border border-border">
@@ -293,6 +291,18 @@ function ProfileEditor({ profile }: { profile: ProfileData }) {
               <ImagePlus className="size-4" aria-hidden />
               Upload photo
             </Button>
+            {form.photoUrl && /^(data:|\/)/.test(form.photoUrl) ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 text-muted-foreground"
+                onClick={() => setCropSrc(form.photoUrl)}
+              >
+                <Crop className="size-4" aria-hidden />
+                Adjust crop
+              </Button>
+            ) : null}
             {form.photoUrl ? (
               <Button
                 type="button"
@@ -306,6 +316,13 @@ function ProfileEditor({ profile }: { profile: ProfileData }) {
             ) : null}
           </div>
         </div>
+
+        <PhotoCropper
+          src={cropSrc}
+          open={cropSrc !== null}
+          onApply={applyCrop}
+          onClose={() => setCropSrc(null)}
+        />
       </section>
 
       {/* Basics */}
