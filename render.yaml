@@ -4,16 +4,9 @@
 # Or one-click: https://render.com/deploy?repo=<your-repo-url>
 #
 # Notes
-# - SQLite is file-based. The free plan has EPHEMERAL storage: the database
-#   resets on every deploy/restart. The built-in self-pinger (SELF_PING_ENABLED)
-#   prevents idle spin-downs, which covers the common data-loss case.
-#   For a persistent DB upgrade `plan` to `starter` and add a disk, e.g.:
-#       plan: starter
-#       disks:
-#         - name: portfolio-data
-#           mountPath: /app/data
-#           sizeGB: 1
-#   …and change DATABASE_URL to file:/app/data/custom.db
+# - Database is hosted on Supabase (PostgreSQL).
+# - Set DATABASE_URL (pooled, port 6543) and DIRECT_URL (direct, port 5432) in
+#   the Render dashboard → Environment.
 # - Set GITHUB_TOKEN in the Render dashboard after the first deploy (sync: false
 #   keeps it out of this file). It enables heatmap sync including private commits.
 
@@ -31,16 +24,14 @@ services:
     buildCommand: |
       npm install -g bun@1
       bun install --frozen-lockfile
-      mkdir -p /opt/render/project/src/db
-      bunx prisma generate
-      bunx prisma db push
+      bun run db:generate
       bun run build
-      bun run scripts/seed.ts
     startCommand: HOSTNAME=0.0.0.0 NODE_ENV=production bun .next/standalone/server.js
     envVars:
       - key: DATABASE_URL
-        # Absolute path — relative file: URLs break under Next standalone output.
-        value: file:/opt/render/project/src/db/custom.db
+        sync: false
+      - key: DIRECT_URL
+        sync: false
       - key: NODE_ENV
         value: production
       # Keep-alive — prevents free-tier idle spin-down. Toggle by flipping to "false".

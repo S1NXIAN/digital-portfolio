@@ -31,16 +31,15 @@ export async function GET(req: Request) {
       _sum: { count: true },
     });
 
-    // SQLite file size via pragma
+    // Database storage size via PostgreSQL
     let dbSizeBytes = 0;
     try {
-      const pageCount = await db.$queryRawUnsafe<{ page_count: number }[]>("PRAGMA page_count");
-      const pageSize = await db.$queryRawUnsafe<{ page_size: number }[]>("PRAGMA page_size");
-      const pages = Number(pageCount?.[0]?.page_count ?? 0);
-      const size = Number(pageSize?.[0]?.page_size ?? 0);
-      dbSizeBytes = pages * size;
-    } catch {
-      // non-fatal
+      const rows = await db.$queryRawUnsafe<{ size: bigint | number | string }[]>(
+        "SELECT pg_database_size(current_database()) AS size"
+      );
+      dbSizeBytes = Number(rows?.[0]?.size ?? 0);
+    } catch (err) {
+      console.warn("[overview] failed to read db size:", err);
     }
 
     const [lastRun, featuredRepos] = await Promise.all([
