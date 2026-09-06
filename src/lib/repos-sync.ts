@@ -191,7 +191,11 @@ export async function runReposSync(trigger: ReposSyncTrigger): Promise<ReposSync
     if (!key) continue;
     const row = byKey.get(key);
     if (row) {
-      await db.repo.update({ where: { id: row.id }, data: rowMeta(gh) });
+      const meta = rowMeta(gh);
+      // GitHub-side description is empty → keep any hand-written copy on the
+      // row instead of clobbering curated text with a blank every night.
+      if (!meta.description && row.description) meta.description = row.description;
+      await db.repo.update({ where: { id: row.id }, data: meta });
       updated += 1;
     } else {
       missing.push({ url: gh.html_url, featured: false, order: 0 });

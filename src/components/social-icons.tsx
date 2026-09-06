@@ -1,7 +1,9 @@
 "use client";
 
 import {
+  Facebook,
   Github,
+  Instagram,
   Linkedin,
   Twitter,
   Mail,
@@ -19,6 +21,8 @@ const MAP: Record<string, LucideIcon> = {
   Linkedin,
   Twitter,
   X: Twitter,
+  Instagram,
+  Facebook,
   Mail,
   Youtube,
   Globe,

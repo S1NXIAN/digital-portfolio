@@ -35,7 +35,7 @@ import {
   ManagerError,
   ManagerLoading,
   ManagerToolbar,
-  SortButtons,
+  SortToggle,
 } from "./ManagerStates";
 import IconPicker from "./IconPicker";
 import { sortSubsetInPlace, usePersistedReorder, type SortDir } from "./use-reorder";
@@ -182,7 +182,7 @@ export default function SkillsManager() {
           />
         }
       >
-        <SortButtons onSort={onSort} disabled={items.length < 2} />
+        <SortToggle onSort={onSort} disabled={items.length < 2} />
         <Button size="sm" onClick={openAdd}>
           <Plus className="size-4" aria-hidden />
           Add skill
@@ -191,7 +191,7 @@ export default function SkillsManager() {
 
       <p className="text-xs text-muted-foreground">
         The Skills section lists categories A → Z with items inside each category also
-        A → Z — use the arrows above to preview the exact public ordering.
+        A → Z — use the sort toggle above to preview the exact public ordering.
       </p>
 
       {items.length === 0 ? (

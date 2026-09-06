@@ -1,7 +1,8 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { ArrowDownAZ, ArrowUpAZ, Search, Trash2 } from "lucide-react";
+import type { SortDir } from "./use-reorder";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -179,39 +180,42 @@ export function ManagerToolbar({
   );
 }
 
-/** A-Z / Z-A sort toggle pair for list managers. */
-export function SortButtons({
+/**
+ * Single alphabetical-sort toggle: the label shows what the NEXT click does.
+ * Starts at "A → Z"; every click sorts in the shown direction, then the
+ * button flips so the next click sorts the other way.
+ */
+export function SortToggle({
   onSort,
   disabled,
 }: {
-  onSort: (dir: "asc" | "desc") => void;
+  onSort: (dir: SortDir) => void;
   disabled?: boolean;
 }) {
+  const [dir, setDir] = useState<SortDir>("asc");
+  const asc = dir === "asc";
+  const label = asc ? "A → Z" : "Z → A";
+
   return (
-    <div className="flex items-center" role="group" aria-label="Sort alphabetically">
-      <Button
-        variant="outline"
-        size="icon"
-        className="size-8 text-muted-foreground hover:text-foreground"
-        onClick={() => onSort("asc")}
-        disabled={disabled}
-        aria-label="Sort A to Z"
-        title="Sort A → Z"
-      >
+    <Button
+      variant="outline"
+      size="sm"
+      className="gap-1.5 text-muted-foreground hover:text-foreground"
+      onClick={() => {
+        onSort(dir);
+        setDir(asc ? "desc" : "asc");
+      }}
+      disabled={disabled}
+      aria-label={`Sort ${asc ? "A to Z" : "Z to A"}`}
+      title={`Sort ${label}`}
+    >
+      {asc ? (
         <ArrowDownAZ className="size-4" aria-hidden />
-      </Button>
-      <Button
-        variant="outline"
-        size="icon"
-        className="size-8 text-muted-foreground hover:text-foreground"
-        onClick={() => onSort("desc")}
-        disabled={disabled}
-        aria-label="Sort Z to A"
-        title="Sort Z → A"
-      >
+      ) : (
         <ArrowUpAZ className="size-4" aria-hidden />
-      </Button>
-    </div>
+      )}
+      <span className="tabular-nums">{label}</span>
+    </Button>
   );
 }
 

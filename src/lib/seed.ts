@@ -5,8 +5,323 @@
  *  1. `bun run db:seed` (scripts/seed.ts) — force reseed
  *  2. Boot-time auto-heal (instrumentation.ts → ensureSeeded) — seeds only
  *     when the DB is empty, so a wiped/missing database never breaks the site.
+ *
+ * The content constants below are also imported by
+ * scripts/reseed-content.ts, which re-applies profile/skills/experience/
+ * knowledge/repos content to a LIVE database without touching settings
+ * (GitHub token), contributions or the admin passcode.
  */
 import type { PrismaClient } from "@prisma/client";
+
+/* ------------------------------------------------------------------ */
+/*  Content — Joshua Deaño · LLM Engineer · Iloilo, PH                */
+/* ------------------------------------------------------------------ */
+
+export const SEED_PROFILE = {
+  id: "main",
+  name: "Joshua Deaño",
+  headline: "LLM Engineer",
+  bio: "I'm an LLM engineer from Iloilo, Philippines — a student by day, freelancer by night, and almost everything I build flows through large language models. I treat prompts like APIs and context windows like scarce memory: structured, measured, deliberate. Two years of shipping school projects, client work and late-night experiments — with Git and Docker keeping the chaos reproducible. I'm unreasonably serious about micro-optimizations, interactions and design: the 1px offsets, the easing curves, the milliseconds nobody notices but everybody feels.",
+  motto: "Build what matters.",
+  photoUrl: "/avatar.png",
+  location: "Iloilo, PH",
+  email: "xian.mainz@proton.me",
+  resumeUrl: "",
+  yearsExperience: 2,
+  availability: "Open for freelance",
+  githubUsername: "S1NXIAN",
+  socials: [
+    { label: "GitHub", url: "https://github.com/S1NXIAN", icon: "Github" },
+    { label: "Instagram", url: "https://instagram.com/_s1nxian", icon: "Instagram" },
+    {
+      label: "Facebook",
+      url: "https://www.facebook.com/search/top?q=Joshua%20Dea%C3%B1o",
+      icon: "Facebook",
+    },
+    { label: "Email", url: "mailto:xian.mainz@proton.me", icon: "Mail" },
+  ],
+  rotatingWords: [
+    "LLM Engineer",
+    "AI-Native Builder",
+    "Student & Freelancer",
+    "Micro-Optimization Freak",
+  ],
+};
+
+/**
+ * Skill icon semantics: "" = auto-match from the name via dashboardicons.com /
+ * simpleicons.org, "https://…" = custom image URL, "slug" = dashboardicons.com
+ * slug. See src/lib/stack-icons.ts.
+ */
+export const SEED_SKILLS: {
+  name: string;
+  category: string;
+  level: number;
+  order: number;
+  icon?: string;
+}[] = [
+  // AI & LLM — the core of how I work
+  { name: "Prompt Engineering", category: "AI & LLM", level: 95, order: 0 },
+  { name: "Context Engineering", category: "AI & LLM", level: 92, order: 1 },
+  { name: "Structured Outputs", category: "AI & LLM", level: 88, order: 2 },
+  { name: "RAG Pipelines", category: "AI & LLM", level: 86, order: 3 },
+  { name: "AI Agents", category: "AI & LLM", level: 84, order: 4 },
+
+  // Design & Motion — the obsession
+  { name: "Micro-interactions", category: "Design & Motion", level: 96, order: 0 },
+  { name: "Tailwind CSS", category: "Design & Motion", level: 92, order: 1, icon: "tailwindcss" },
+  { name: "Framer Motion", category: "Design & Motion", level: 90, order: 2, icon: "framermotion" },
+  { name: "Figma", category: "Design & Motion", level: 76, order: 3, icon: "figma" },
+
+  // Frontend
+  { name: "Next.js", category: "Frontend", level: 90, order: 0, icon: "nextjs" },
+  { name: "React", category: "Frontend", level: 88, order: 1, icon: "react" },
+  { name: "shadcn/ui", category: "Frontend", level: 90, order: 2 },
+  { name: "TanStack Query", category: "Frontend", level: 85, order: 3 },
+  { name: "Zustand", category: "Frontend", level: 84, order: 4 },
+
+  // Languages
+  { name: "TypeScript", category: "Languages", level: 92, order: 0, icon: "typescript" },
+  { name: "Python", category: "Languages", level: 84, order: 1, icon: "python" },
+  { name: "SQL", category: "Languages", level: 72, order: 2 },
+  { name: "Bash", category: "Languages", level: 70, order: 3 },
+
+  // LLM APIs — the daily drivers
+  { name: "OpenAI API", category: "LLM APIs", level: 90, order: 0, icon: "openai" },
+  { name: "Anthropic Claude", category: "LLM APIs", level: 90, order: 1, icon: "anthropic" },
+  { name: "Google Gemini", category: "LLM APIs", level: 84, order: 2, icon: "googlegemini" },
+  { name: "Ollama", category: "LLM APIs", level: 78, order: 3, icon: "ollama" },
+  { name: "LangChain", category: "LLM APIs", level: 76, order: 4, icon: "langchain" },
+
+  // Workflow — Git & Docker keep it honest
+  { name: "Git", category: "Workflow", level: 88, order: 0, icon: "git" },
+  { name: "Docker", category: "Workflow", level: 80, order: 1, icon: "docker" },
+  { name: "Vercel", category: "Workflow", level: 86, order: 2, icon: "vercel" },
+  { name: "GitHub Actions", category: "Workflow", level: 78, order: 3, icon: "githubactions" },
+  { name: "Linux", category: "Workflow", level: 74, order: 4, icon: "linux" },
+];
+
+/** Career timeline = school projects for now (student first, freelancer on the side). */
+export const SEED_EXPERIENCES: {
+  company: string;
+  role: string;
+  period: string;
+  description: string;
+  tech: string;
+  current: boolean;
+  order: number;
+}[] = [
+  {
+    company: "Capstone Project",
+    role: "LLM Engineer",
+    period: "2026 — Present",
+    description:
+      "Building an AI study companion for my capstone — lecture notes in, structured flashcards, quizzes and a tutor-style chat out. I own the whole pipeline: chunking, embeddings, retrieval and fail-safe structured output.",
+    tech: "Next.js, TypeScript, OpenAI API, pgvector, Docker",
+    current: true,
+    order: 0,
+  },
+  {
+    company: "School Project",
+    role: "Full-Stack Developer",
+    period: "2025 — 2026",
+    description:
+      "Campus events hub for the school fair — announcements, RSVPs and QR check-in used by 500+ students. The first LLM-assisted codebase of mine that met real users at scale, deadlines and zero-tolerance-for-bugs territory.",
+    tech: "Next.js, Prisma, SQLite, Tailwind CSS, GitHub Actions",
+    current: false,
+    order: 1,
+  },
+  {
+    company: "School Project",
+    role: "Chatbot Developer",
+    period: "2024 — 2025",
+    description:
+      "Course-inquiry chatbot for my department: a prompt-engineered FAQ agent with function calling that answers schedules, prerequisites and room assignments — no more lining up at the registrar for one question.",
+    tech: "Python, FastAPI, OpenAI API, LangChain",
+    current: false,
+    order: 2,
+  },
+  {
+    company: "Personal Project",
+    role: "Self-Taught Builder",
+    period: "2024",
+    description:
+      "Where it started — Discord bots, browser userscripts and an unhealthy number of to-do apps. Learned Git properly after losing a week of work exactly once. It never happened again.",
+    tech: "JavaScript, Node.js, Git, Discord.js",
+    current: false,
+    order: 3,
+  },
+];
+
+/**
+ * Real repositories (github.com/S1NXIAN). The nightly sync keeps name,
+ * language, topics, stars & forks fresh; hand-written descriptions are kept
+ * when GitHub has none (see src/lib/repos-sync.ts).
+ */
+export const SEED_REPOS: {
+  name: string;
+  description: string;
+  url: string;
+  language: string;
+  stars: number;
+  forks: number;
+  featured: boolean;
+}[] = [
+  {
+    name: "LCKED",
+    description:
+      "A local-first, self-hosted password manager inspired by \"Proton Pass\" — encrypted vault, zero-knowledge by design.",
+    url: "https://github.com/S1NXIAN/LCKED",
+    language: "TypeScript",
+    stars: 0,
+    forks: 0,
+    featured: true,
+  },
+  {
+    name: "omniroute-mcp-lite",
+    description:
+      "Thin zero-dependency stdio MCP proxy exposing only OmniRoute's web_search + web_fetch tools.",
+    url: "https://github.com/S1NXIAN/omniroute-mcp-lite",
+    language: "JavaScript",
+    stars: 0,
+    forks: 0,
+    featured: true,
+  },
+  {
+    name: "nvim",
+    description:
+      "My Neovim configuration — keyboard-driven, fast, and obsessively tuned down to the millisecond.",
+    url: "https://github.com/S1NXIAN/nvim",
+    language: "Lua",
+    stars: 0,
+    forks: 0,
+    featured: true,
+  },
+  {
+    name: "mastery",
+    description: "Curated learning paths to programming language mastery.",
+    url: "https://github.com/S1NXIAN/mastery",
+    language: "",
+    stars: 2,
+    forks: 0,
+    featured: true,
+  },
+  {
+    name: "mv3",
+    description: "",
+    url: "https://github.com/S1NXIAN/mv3",
+    language: "JavaScript",
+    stars: 2,
+    forks: 0,
+    featured: false,
+  },
+  {
+    name: "omarchy-theme-cendre",
+    description: "A muted \"Cendre\" theme for Omarchy (Arch + Hyprland).",
+    url: "https://github.com/S1NXIAN/omarchy-theme-cendre",
+    language: "CSS",
+    stars: 0,
+    forks: 0,
+    featured: false,
+  },
+  {
+    name: "portfolio",
+    description: "Redirect to digital portfolio on Render",
+    url: "https://github.com/S1NXIAN/portfolio",
+    language: "HTML",
+    stars: 0,
+    forks: 0,
+    featured: false,
+  },
+  {
+    name: "S1NXIAN",
+    description: "My GitHub profile README",
+    url: "https://github.com/S1NXIAN/S1NXIAN",
+    language: "",
+    stars: 0,
+    forks: 0,
+    featured: false,
+  },
+  {
+    name: "S1NXIAN.github.io",
+    description: "GitHub Pages site",
+    url: "https://github.com/S1NXIAN/S1NXIAN.github.io",
+    language: "HTML",
+    stars: 0,
+    forks: 0,
+    featured: false,
+  },
+  {
+    name: "ytm-scrobbler",
+    description: "",
+    url: "https://github.com/S1NXIAN/ytm-scrobbler",
+    language: "JavaScript",
+    stars: 0,
+    forks: 0,
+    featured: false,
+  },
+];
+
+export const SEED_KNOWLEDGE: {
+  title: string;
+  description: string;
+  category: string;
+  icon: string;
+  order: number;
+}[] = [
+  {
+    title: "Context Engineering",
+    description:
+      "The context window is the scarcest resource in any LLM app. Trimming, structuring and staging information so the model gets exactly what it needs — nothing more, nothing less.",
+    category: "LLM Craft",
+    icon: "Brain",
+    order: 0,
+  },
+  {
+    title: "Prompt Architecture",
+    description:
+      "Prompts are APIs: versioned, tested and regression-checked. System design for instructions, few-shot selection, tool schemas and failure modes.",
+    category: "LLM Craft",
+    icon: "Sparkles",
+    order: 1,
+  },
+  {
+    title: "Retrieval & RAG",
+    description:
+      "Chunking strategies, embedding choices, hybrid search and re-ranking. Most \"AI apps\" are really retrieval apps wearing a chatbot costume.",
+    category: "LLM Craft",
+    icon: "Database",
+    order: 2,
+  },
+  {
+    title: "Micro-Optimization",
+    description:
+      "Bundle budgets, memoization, frame budgets, paint costs. The 1px and 1ms details nobody notices individually but everybody feels together.",
+    category: "Detail Obsession",
+    icon: "Gauge",
+    order: 3,
+  },
+  {
+    title: "Interaction Design",
+    description:
+      "Motion with intent: easing curves, stagger, optimistic UI. Every hover, drag and transition should tell the user something useful.",
+    category: "Detail Obsession",
+    icon: "Layers",
+    order: 4,
+  },
+  {
+    title: "Reproducible Workflow",
+    description:
+      "Docker for identical environments, Git for honest history. The boring discipline that keeps AI-speed development from turning into chaos.",
+    category: "Ops",
+    icon: "GitBranch",
+    order: 5,
+  },
+];
+
+/* ------------------------------------------------------------------ */
+/*  Seeding                                                            */
+/* ------------------------------------------------------------------ */
 
 // Deterministic PRNG so seeded heatmap looks organic but stable
 function mulberry32(seed: number) {
@@ -31,206 +346,36 @@ export async function seedDatabase(db: PrismaClient) {
   await db.profile.upsert({
     where: { id: "main" },
     update: {},
-    create: {
-      id: "main",
-      name: "Alex Carter",
-      headline: "Full-Stack Engineer",
-      bio: "I design and build end-to-end products — from pixel-perfect interfaces to resilient backend systems. I care deeply about developer experience, performance budgets, and shipping software that feels effortless. Currently focused on TypeScript, Next.js and cloud-native architecture.",
-      motto: "Build things that outlive the hype cycle.",
-      photoUrl: "/avatar.png",
-      location: "Manila, PH",
-      email: "hello@alexcarter.dev",
-      resumeUrl: "",
-      yearsExperience: 6,
-      availability: "Open to work",
-      githubUsername: "alexcarter",
-      socials: [
-        { label: "GitHub", url: "https://github.com/alexcarter", icon: "Github" },
-        { label: "LinkedIn", url: "https://linkedin.com/in/alexcarter", icon: "Linkedin" },
-        { label: "Twitter / X", url: "https://x.com/alexcarter", icon: "Twitter" },
-        { label: "Email", url: "mailto:hello@alexcarter.dev", icon: "Mail" },
-      ],
-      rotatingWords: [
-        "Full-Stack Engineer",
-        "Product Minded Builder",
-        "TypeScript Enthusiast",
-        "Systems Thinker",
-      ],
-    },
+    create: SEED_PROFILE,
   });
 
   // ---- Skills ----
-  // `icon` semantics: "" = auto-match from the name via dashboardicons.com / simpleicons.org,
-  // "https://…" = custom image URL, "slug" = dashboardicons.com slug. See src/lib/stack-icons.ts.
-  const skills = [
-    { name: "TypeScript", category: "Languages", level: 95, order: 0 },
-    { name: "JavaScript (ES2024)", category: "Languages", level: 95, order: 1 },
-    { name: "Python", category: "Languages", level: 78, order: 2 },
-    { name: "Go", category: "Languages", level: 65, order: 3 },
-    { name: "SQL", category: "Languages", level: 85, order: 4 },
-
-    { name: "React", category: "Frontend", level: 95, order: 0 },
-    { name: "Next.js", category: "Frontend", level: 92, order: 1 },
-    { name: "Tailwind CSS", category: "Frontend", level: 90, order: 2 },
-    { name: "Framer Motion", category: "Frontend", level: 85, order: 3 },
-    { name: "React Native", category: "Frontend", level: 70, order: 4 },
-
-    { name: "Node.js", category: "Backend", level: 92, order: 0 },
-    { name: "PostgreSQL", category: "Backend", level: 85, order: 1 },
-    { name: "Prisma ORM", category: "Backend", level: 88, order: 2 },
-    { name: "Redis", category: "Backend", level: 75, order: 3 },
-    { name: "GraphQL", category: "Backend", level: 80, order: 4 },
-
-    { name: "Docker", category: "DevOps & Cloud", level: 85, order: 0 },
-    { name: "AWS", category: "DevOps & Cloud", level: 78, order: 1 },
-    { name: "CI/CD (GitHub Actions)", category: "DevOps & Cloud", level: 85, order: 2 },
-    { name: "Kubernetes", category: "DevOps & Cloud", level: 65, order: 3 },
-    { name: "Terraform", category: "DevOps & Cloud", level: 60, order: 4 },
-  ];
+  const skills = SEED_SKILLS.map(({ name, category, level, order, icon }) => ({
+    name,
+    category,
+    level,
+    order,
+    icon: icon ?? "",
+  }));
   await db.skill.deleteMany();
   await db.skill.createMany({ data: skills });
 
   // ---- Experience ----
-  const experiences = [
-    {
-      company: "Nimbus Labs",
-      role: "Senior Full-Stack Engineer",
-      period: "2022 — Present",
-      description:
-        "Leading the platform team building a multi-tenant analytics product. Architected the move to edge-rendered Next.js, cut p95 page load by 58%, and mentor a squad of four engineers.",
-      tech: "Next.js, TypeScript, PostgreSQL, AWS, Terraform",
-      current: true,
-      order: 0,
-    },
-    {
-      company: "Forge Digital",
-      role: "Full-Stack Developer",
-      period: "2020 — 2022",
-      description:
-        "Shipped 12+ client products from zero to production — e-commerce, fintech dashboards and real-time collaboration tools. Introduced typed API contracts and testing culture across the team.",
-      tech: "React, Node.js, GraphQL, Redis, Docker",
-      current: false,
-      order: 1,
-    },
-    {
-      company: "Brightline Studio",
-      role: "Frontend Developer",
-      period: "2019 — 2020",
-      description:
-        "Built award-winning marketing sites and design systems with obsessive attention to motion and accessibility. Learned that details are the product.",
-      tech: "React, Vue, GSAP, Storybook",
-      current: false,
-      order: 2,
-    },
-  ];
+  const experiences = SEED_EXPERIENCES;
   await db.experience.deleteMany();
   await db.experience.createMany({ data: experiences });
 
   // ---- Repos ----
-  const repos = [
-    {
-      name: "edgekit",
-      description:
-        "Batteries-included Next.js starter with auth, billing, typed API layer and edge caching. 4k+ downloads/month.",
-      url: "https://github.com/alexcarter/edgekit",
-      language: "TypeScript",
-      stars: 1240,
-      forks: 96,
-      featured: true,
-      order: 0,
-    },
-    {
-      name: "redisqlite",
-      description:
-        "Tiny embedded queue with Redis semantics on top of SQLite — perfect for serverless cron workers.",
-      url: "https://github.com/alexcarter/redisqlite",
-      language: "Go",
-      stars: 640,
-      forks: 31,
-      featured: true,
-      order: 1,
-    },
-    {
-      name: "motion-primitives",
-      description:
-        "Copy-paste Framer Motion interaction primitives: magnetic buttons, tilt cards, reveal text.",
-      url: "https://github.com/alexcarter/motion-primitives",
-      language: "TypeScript",
-      stars: 890,
-      forks: 54,
-      featured: true,
-      order: 2,
-    },
-    {
-      name: "shipcheck",
-      description:
-        "Pre-deploy checklist CLI that audits lighthouse scores, bundle budgets and a11y before you ship.",
-      url: "https://github.com/alexcarter/shipcheck",
-      language: "Python",
-      stars: 410,
-      forks: 22,
-      featured: true,
-      order: 3,
-    },
-  ];
+  const repos = SEED_REPOS.map(({ featured, ...r }, i) => ({ ...r, featured, order: i }));
   await db.repo.deleteMany();
   await db.repo.createMany({ data: repos });
 
   // ---- Knowledge ----
-  const knowledge = [
-    {
-      title: "System Design",
-      description:
-        "Scaling read-heavy services, caching strategies, event-driven pipelines, idempotent APIs and graceful degradation.",
-      category: "Architecture",
-      icon: "Network",
-      order: 0,
-    },
-    {
-      title: "Performance Engineering",
-      description:
-        "Core Web Vitals, streaming SSR, bundle budgets, query planning and profiling before guessing.",
-      category: "Architecture",
-      icon: "Gauge",
-      order: 1,
-    },
-    {
-      title: "Testing Culture",
-      description:
-        "Vitest/Playwright pyramids, contract testing, flake elimination and CI gates that people actually trust.",
-      category: "Craft",
-      icon: "FlaskConical",
-      order: 2,
-    },
-    {
-      title: "Type-Safe APIs",
-      description:
-        "End-to-end contracts with tRPC/OpenAPI, runtime validation with Zod, and zero `any` policies.",
-      category: "Craft",
-      icon: "ShieldCheck",
-      order: 3,
-    },
-    {
-      title: "Cloud & Infrastructure",
-      description:
-        "Docker-first workflows, IaC with Terraform, observability with OpenTelemetry and cost-aware autoscaling.",
-      category: "Operations",
-      icon: "CloudCog",
-      order: 4,
-    },
-    {
-      title: "Developer Experience",
-      description:
-        "Monorepo tooling, fast local loops, AI-assisted workflows and docs that make onboarding a day, not a month.",
-      category: "Operations",
-      icon: "Terminal",
-      order: 5,
-    },
-  ];
+  const knowledge = SEED_KNOWLEDGE;
   await db.knowledgeItem.deleteMany();
   await db.knowledgeItem.createMany({ data: knowledge });
 
-  // ---- Contributions (last 365 days, realistic pattern) ----
+  // ---- Contributions (placeholder until the nightly GitHub sync lands) ----
   await db.contribution.deleteMany();
   const rand = mulberry32(42);
   const rows: { date: string; count: number; note: string }[] = [];
