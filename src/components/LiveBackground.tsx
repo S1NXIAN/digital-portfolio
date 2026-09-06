@@ -36,6 +36,9 @@ const LINK_DISTANCE = 120;
 const LINK_ALPHA = 0.2;
 /** Link opacities are quantized into buckets so lines batch into few strokes. */
 const LINK_BUCKETS = 4;
+/** Reach + brightness of the lines connecting the cursor to nearby dots. */
+const CURSOR_LINK_DISTANCE = 150;
+const CURSOR_LINK_ALPHA = 0.32;
 const PARTICLE_ALPHA = 0.4;
 /** Dots simply slide away when the pointer comes closer than this. */
 const MOUSE_RADIUS = 130;
@@ -105,6 +108,7 @@ const getReducedMotionServerSnapshot = () => false;
  * particle canvas, a masked dot grid and a film-grain overlay.
  *
  * Canvas interactions (kept deliberately light):
+ *  - nearby dots tie themselves to the pointer with faint fading lines
  *  - pointer near a dot → the dot simply slides away (plain avoidance)
  *  - click             → small shockwave; nearer dots get a slightly harder
  *                        nudge, with a faint expanding ring as feedback
@@ -158,6 +162,8 @@ export default function LiveBackground() {
 
     // Reused per-frame segment buckets for batched link drawing.
     const linkSegments: number[][] = Array.from({ length: LINK_BUCKETS }, () => []);
+    // Same idea for the cursor→dot links.
+    const cursorSegments: number[][] = Array.from({ length: LINK_BUCKETS }, () => []);
 
     // Read the accent-aware color ONCE per theme change (not per frame).
     const readThemeColor = (): string =>
@@ -348,9 +354,25 @@ export default function LiveBackground() {
       // quantized into a few buckets so each bucket is a single stroke
       // instead of one state change + stroke per line.
       for (let b = 0; b < LINK_BUCKETS; b += 1) linkSegments[b].length = 0;
+      for (let b = 0; b < LINK_BUCKETS; b += 1) cursorSegments[b].length = 0;
       const maxDistSq = LINK_DISTANCE * LINK_DISTANCE;
+      const cursorMaxDistSq = CURSOR_LINK_DISTANCE * CURSOR_LINK_DISTANCE;
+      const cursorOnScreen = mouse.x > -999 && mouse.y > -999;
       for (let i = 0; i < particles.length; i += 1) {
         const a = particles[i];
+
+        // Cursor → dot links (fade with distance, batched like the rest).
+        if (cursorOnScreen) {
+          const mdx = a.x - mouse.x;
+          const mdy = a.y - mouse.y;
+          const mDistSq = mdx * mdx + mdy * mdy;
+          if (mDistSq < cursorMaxDistSq) {
+            const t = 1 - Math.sqrt(mDistSq) / CURSOR_LINK_DISTANCE;
+            const bucket = Math.min(LINK_BUCKETS - 1, (t * LINK_BUCKETS) | 0);
+            cursorSegments[bucket].push(mouse.x, mouse.y, a.x, a.y);
+          }
+        }
+
         for (let j = i + 1; j < particles.length; j += 1) {
           const b = particles[j];
           const dx = a.x - b.x;
@@ -369,6 +391,17 @@ export default function LiveBackground() {
         const seg = linkSegments[b];
         if (seg.length === 0) continue;
         ctx.globalAlpha = ((b + 0.5) / LINK_BUCKETS) * LINK_ALPHA;
+        ctx.beginPath();
+        for (let s = 0; s < seg.length; s += 4) {
+          ctx.moveTo(seg[s], seg[s + 1]);
+          ctx.lineTo(seg[s + 2], seg[s + 3]);
+        }
+        ctx.stroke();
+      }
+      for (let b = 0; b < LINK_BUCKETS; b += 1) {
+        const seg = cursorSegments[b];
+        if (seg.length === 0) continue;
+        ctx.globalAlpha = ((b + 0.5) / LINK_BUCKETS) * CURSOR_LINK_ALPHA;
         ctx.beginPath();
         for (let s = 0; s < seg.length; s += 4) {
           ctx.moveTo(seg[s], seg[s + 1]);

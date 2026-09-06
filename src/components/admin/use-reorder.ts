@@ -4,46 +4,47 @@ import { useCallback, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { api } from "./lib";
+import type { AdminEntity } from "@/types/portfolio";
 
-type AdminEntity = "skills" | "experiences" | "repos" | "knowledge";
+export type SortDir = "asc" | "desc";
 
 /**
- * Compute a new full-list order from a move performed inside a (possibly
- * filtered) visible subset. The item jumps to just before/after its nearest
- * visible neighbour in the FULL list, so hidden items keep a sane order.
- * Returns null when the move is a no-op (edge of the visible list).
+ * Apply an A-Z / Z-A sort to a (possibly filtered) subset of the full list,
+ * while every other item keeps its current global position. The subset slides
+ * into the same positions it already occupies — cross-category order is
+ * preserved, so the public site's category grouping stays sane.
  */
-export function moveInList<T extends { id: string }>(
+export function sortSubsetInPlace<T extends { id: string }>(
   full: T[],
   visibleIds: string[],
-  visibleIndex: number,
-  dir: -1 | 1
-): T[] | null {
-  const neighborVisibleIndex = visibleIndex + dir;
-  if (neighborVisibleIndex < 0 || neighborVisibleIndex >= visibleIds.length) return null;
-
-  const movedId = visibleIds[visibleIndex];
-  const neighborId = visibleIds[neighborVisibleIndex];
-  const movedIndex = full.findIndex((x) => x.id === movedId);
-  const neighborIndex = full.findIndex((x) => x.id === neighborId);
-  if (movedIndex === -1 || neighborIndex === -1) return null;
-
-  const next = full.filter((x) => x.id !== movedId);
-  const insertAt = next.findIndex((x) => x.id === neighborId);
-  next.splice(dir === -1 ? insertAt : insertAt + 1, 0, full[movedIndex]);
-  return next;
+  label: (item: T) => string,
+  dir: SortDir
+): T[] {
+  const subset = new Set(visibleIds);
+  const sorted = full
+    .filter((x) => subset.has(x.id))
+    .sort((a, b) => {
+      const cmp = label(a).localeCompare(label(b), undefined, {
+        sensitivity: "base",
+        numeric: true,
+      });
+      return dir === "asc" ? cmp : -cmp;
+    });
+  let k = 0;
+  return full.map((x) => (subset.has(x.id) ? sorted[k++] : x));
 }
 
 /**
- * Persist a new item order with an optimistic UI update.
- * Returns the async persist function plus a pending flag.
+ * Persist a new item order (drag & drop result or alphabetical sort) with an
+ * optimistic UI update. Pass ids in the desired final order; the API assigns
+ * order = array index.
  */
 export function usePersistedReorder(entity: AdminEntity, queryKey: unknown[]) {
   const queryClient = useQueryClient();
   const busy = useRef(false);
 
   const persist = useCallback(
-    async (next: unknown[], movedLabel?: string, dir?: -1 | 1) => {
+    async (next: unknown[], toastMessage?: string) => {
       if (busy.current) return;
       busy.current = true;
 
@@ -58,8 +59,7 @@ export function usePersistedReorder(entity: AdminEntity, queryKey: unknown[]) {
         });
         await queryClient.invalidateQueries({ queryKey });
         await queryClient.invalidateQueries({ queryKey: ["portfolio"] });
-        if (movedLabel)
-          toast.success(`Moved ${movedLabel} ${dir === -1 ? "up" : "down"}`);
+        toast.success(toastMessage ?? "Order updated");
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Reorder failed");
         await queryClient.invalidateQueries({ queryKey });

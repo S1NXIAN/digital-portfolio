@@ -20,7 +20,14 @@ export default function Skills({ skills }: { skills: SkillData[] }) {
       list.push(skill);
       map.set(skill.category, list);
     }
-    // stable order: by first appearance (data is pre-sorted by category, order)
+    // Categories render alphabetically (API pre-sorts by category) — keep the
+    // items inside each category alphabetical too, so the card reads like a
+    // sorted index rather than an admin-order artifact.
+    for (const list of map.values()) {
+      list.sort((a, b) =>
+        a.name.localeCompare(b.name, undefined, { sensitivity: "base", numeric: true })
+      );
+    }
     return Array.from(map.entries());
   }, [skills]);
 

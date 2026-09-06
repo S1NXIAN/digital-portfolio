@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { msUntilNextPhMidnight, runContributionsSync } from "@/lib/contributions-sync";
+import { runReposSyncSafe } from "@/lib/repos-sync";
 
 /**
  * Nightly GitHub auto-sync — runs every day at 12:00 AM Philippine time
@@ -35,6 +36,10 @@ async function tick(): Promise<void> {
     const message = err instanceof Error ? err.message : "unknown error";
     console.error(`[auto-sync] FAILED for ${username}: ${message}`);
   }
+
+  // Repo metadata (name / description / language / stars / forks / topics)
+  // rides the same midnight tick — runs right after the contributions sync.
+  await runReposSyncSafe("auto");
 }
 
 export function startAutoSyncScheduler(): void {

@@ -1,11 +1,18 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { ChevronDown, ChevronUp, Search, Trash2 } from "lucide-react";
+import { ArrowDownAZ, ArrowUpAZ, Search, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -128,13 +135,14 @@ export function EmptyState({ message }: { message: string }) {
   );
 }
 
-/** Search + count header with a right-hand slot (usually the Add button). */
+/** Search + count header with optional leading filters and a right-hand slot. */
 export function ManagerToolbar({
   search,
   onSearch,
   searchPlaceholder = "Search…",
   count,
   totalCount,
+  leading,
   children,
 }: {
   search: string;
@@ -142,10 +150,13 @@ export function ManagerToolbar({
   searchPlaceholder?: string;
   count: number;
   totalCount: number;
+  /** Rendered before the search box (category dropdowns, sort buttons…). */
+  leading?: ReactNode;
   children?: ReactNode;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2.5">
+      {leading}
       <div className="relative min-w-0 flex-1 sm:max-w-xs">
         <Search
           className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
@@ -168,40 +179,72 @@ export function ManagerToolbar({
   );
 }
 
-/** Up/down reorder arrows; wire to a move handler that persists the new order. */
-export function ReorderButtons({
-  onMove,
-  index,
-  total,
+/** A-Z / Z-A sort toggle pair for list managers. */
+export function SortButtons({
+  onSort,
   disabled,
 }: {
-  onMove: (index: number, dir: -1 | 1) => void;
-  index: number;
-  total: number;
+  onSort: (dir: "asc" | "desc") => void;
   disabled?: boolean;
 }) {
   return (
-    <div className="flex items-center" role="group" aria-label="Reorder">
+    <div className="flex items-center" role="group" aria-label="Sort alphabetically">
       <Button
-        variant="ghost"
+        variant="outline"
         size="icon"
-        className="size-7 text-muted-foreground disabled:opacity-25"
-        onClick={() => onMove(index, -1)}
-        disabled={disabled || index === 0}
-        aria-label="Move up"
+        className="size-8 text-muted-foreground hover:text-foreground"
+        onClick={() => onSort("asc")}
+        disabled={disabled}
+        aria-label="Sort A to Z"
+        title="Sort A → Z"
       >
-        <ChevronUp className="size-4" aria-hidden />
+        <ArrowDownAZ className="size-4" aria-hidden />
       </Button>
       <Button
-        variant="ghost"
+        variant="outline"
         size="icon"
-        className="size-7 text-muted-foreground disabled:opacity-25"
-        onClick={() => onMove(index, 1)}
-        disabled={disabled || index === total - 1}
-        aria-label="Move down"
+        className="size-8 text-muted-foreground hover:text-foreground"
+        onClick={() => onSort("desc")}
+        disabled={disabled}
+        aria-label="Sort Z to A"
+        title="Sort Z → A"
       >
-        <ChevronDown className="size-4" aria-hidden />
+        <ArrowUpAZ className="size-4" aria-hidden />
       </Button>
     </div>
+  );
+}
+
+/** Category filter dropdown — value "" means “all categories”. */
+export function CategorySelect({
+  categories,
+  value,
+  onChange,
+  ariaLabel = "Filter by category",
+  className = "w-[10.5rem]",
+}: {
+  categories: string[];
+  value: string;
+  onChange: (value: string) => void;
+  ariaLabel?: string;
+  className?: string;
+}) {
+  if (categories.length === 0) return null;
+  return (
+    <Select value={value === "" ? "__all" : value} onValueChange={(v) => onChange(v === "__all" ? "" : v)}>
+      <SelectTrigger className={className} aria-label={ariaLabel}>
+        <SelectValue placeholder="All categories" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="__all">
+          <span className="text-muted-foreground">All categories</span>
+        </SelectItem>
+        {categories.map((c) => (
+          <SelectItem key={c} value={c}>
+            {c}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }

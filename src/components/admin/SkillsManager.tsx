@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -28,18 +28,19 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { api } from "./lib";
 import {
+  CategorySelect,
   ConfirmDeleteDialog,
   EmptyState,
   Field,
   ManagerError,
   ManagerLoading,
   ManagerToolbar,
-  ReorderButtons,
+  SortButtons,
 } from "./ManagerStates";
 import IconPicker from "./IconPicker";
-import { moveInList, usePersistedReorder } from "./use-reorder";
+import { sortSubsetInPlace, usePersistedReorder, type SortDir } from "./use-reorder";
 
-const CATEGORIES = ["Languages", "Frontend", "Backend", "DevOps & Cloud", "Tools"];
+const FALLBACK_CATEGORIES = ["Languages", "Frontend", "Backend", "DevOps & Cloud", "Tools"];
 
 export default function SkillsManager() {
   const queryClient = useQueryClient();
@@ -53,17 +54,51 @@ export default function SkillsManager() {
   const [name, setName] = useState("");
   const [category, setCategory] = useState("Languages");
   const [level, setLevel] = useState(80);
-  const [order, setOrder] = useState(0);
   const [icon, setIcon] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
   const [error, setError] = useState("");
 
+  // List controls — category filter + alphabetical sort.
+  const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+
+  const allItems = useMemo(() => data?.items ?? [], [data]);
+  const categories = useMemo(() => {
+    const set = new Set<string>();
+    for (const s of allItems) if (s.category.trim()) set.add(s.category.trim());
+    FALLBACK_CATEGORIES.forEach((c) => set.add(c));
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [allItems]);
+  const editorCategories = useMemo(
+    () => Array.from(new Set(allItems.map((s) => s.category).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
+    [allItems]
+  );
+
+  const needle = search.trim().toLowerCase();
+  const items = useMemo(
+    () =>
+      allItems.filter((s) => {
+        if (categoryFilter && s.category !== categoryFilter) return false;
+        if (!needle) return true;
+        return (
+          s.name.toLowerCase().includes(needle) || s.category.toLowerCase().includes(needle)
+        );
+      }),
+    [allItems, categoryFilter, needle]
+  );
+
+  const { persist } = usePersistedReorder("skills", ["admin", "skills"]);
+  const onSort = (dir: SortDir) => {
+    if (items.length < 2) return;
+    const next = sortSubsetInPlace(allItems, items.map((s) => s.id), (s) => s.name, dir);
+    void persist(next, `Skills sorted ${dir === "asc" ? "A → Z" : "Z → A"}`);
+  };
+
   const openAdd = () => {
     setEditing(null);
     setName("");
-    setCategory("Languages");
+    setCategory(categoryFilter || "Languages");
     setLevel(80);
-    setOrder(data?.items.length ? Math.max(...data.items.map((s) => s.order)) + 1 : 0);
     setIcon("");
     setError("");
     setOpen(true);
@@ -74,7 +109,6 @@ export default function SkillsManager() {
     setName(skill.name);
     setCategory(skill.category);
     setLevel(skill.level);
-    setOrder(skill.order);
     setIcon(skill.icon ?? "");
     setError("");
     setOpen(true);
@@ -104,22 +138,6 @@ export default function SkillsManager() {
     onError: (err: Error) => toast.error(err.message),
   });
 
-  const [search, setSearch] = useState("");
-  const allItems = data?.items ?? [];
-  const needle = search.trim().toLowerCase();
-  const items = needle
-    ? allItems.filter(
-        (s) =>
-          s.name.toLowerCase().includes(needle) || s.category.toLowerCase().includes(needle)
-      )
-    : allItems;
-  const visibleIds = items.map((s) => s.id);
-  const { persist } = usePersistedReorder("skills", ["admin", "skills"]);
-  const onMove = (visibleIndex: number, dir: -1 | 1) => {
-    const next = moveInList(allItems, visibleIds, visibleIndex, dir);
-    if (next) persist(next, items[visibleIndex]?.name, dir);
-  };
-
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
@@ -135,7 +153,6 @@ export default function SkillsManager() {
       name: name.trim(),
       category: category.trim(),
       level: Math.round(level),
-      order: Math.round(order || 0),
       icon: icon.trim(),
     });
   };
@@ -157,27 +174,40 @@ export default function SkillsManager() {
         searchPlaceholder="Search skills or categories…"
         count={items.length}
         totalCount={allItems.length}
+        leading={
+          <CategorySelect
+            categories={categories}
+            value={categoryFilter}
+            onChange={setCategoryFilter}
+          />
+        }
       >
+        <SortButtons onSort={onSort} disabled={items.length < 2} />
         <Button size="sm" onClick={openAdd}>
           <Plus className="size-4" aria-hidden />
           Add skill
         </Button>
       </ManagerToolbar>
 
+      <p className="text-xs text-muted-foreground">
+        The Skills section lists categories A → Z with items inside each category also
+        A → Z — use the arrows above to preview the exact public ordering.
+      </p>
+
       {items.length === 0 ? (
         <EmptyState
           message={
             allItems.length === 0
               ? "No skills yet. Add your first skill to get started."
-              : `No skills match “${search}”.`
+              : `No skills match “${search || categoryFilter}”.`
           }
         />
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
-          {items.map((skill, index) => (
+          {items.map((skill) => (
             <div
               key={skill.id}
-              className="rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/40"
+              className="group rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/40"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-2.5">
@@ -190,18 +220,13 @@ export default function SkillsManager() {
                     <h3 className="truncate text-sm font-semibold">{skill.name}</h3>
                     <div className="mt-1.5 flex items-center gap-2">
                       <Badge variant="secondary">{skill.category}</Badge>
-                      <span className="text-xs text-muted-foreground">
-                        {skill.level}% · order {skill.order}
+                      <span className="text-xs text-muted-foreground tabular-nums">
+                        {skill.level}%
                       </span>
                     </div>
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
-                  <ReorderButtons
-                    onMove={onMove}
-                    index={index}
-                    total={items.length}
-                  />
                   <Button
                     variant="ghost"
                     size="icon"
@@ -273,6 +298,7 @@ export default function SkillsManager() {
               label="Category"
               htmlFor="skill-category"
               error={error && name.trim() && !category.trim() ? error : undefined}
+              hint="Pick an existing category or type a new one."
             >
               <Input
                 id="skill-category"
@@ -282,7 +308,10 @@ export default function SkillsManager() {
                 placeholder="Backend"
               />
               <datalist id="skill-categories">
-                {CATEGORIES.map((c) => (
+                {(editorCategories.length > 0
+                  ? editorCategories
+                  : FALLBACK_CATEGORIES
+                ).map((c) => (
                   <option key={c} value={c} />
                 ))}
               </datalist>
@@ -350,14 +379,6 @@ export default function SkillsManager() {
                 onValueChange={(v) => setLevel(v[0] ?? 0)}
               />
             </div>
-            <Field label="Order" htmlFor="skill-order" hint="Lower numbers appear first.">
-              <Input
-                id="skill-order"
-                type="number"
-                value={order}
-                onChange={(e) => setOrder(Number(e.target.value))}
-              />
-            </Field>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                 Cancel

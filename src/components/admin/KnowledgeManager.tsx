@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -19,6 +19,7 @@ import {
   Pencil,
   Plus,
   Rocket,
+  SearchX,
   ShieldCheck,
   Sparkles,
   Terminal,
@@ -37,6 +38,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -46,16 +48,17 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "./lib";
+import DragList from "./DragList";
 import {
+  CategorySelect,
   ConfirmDeleteDialog,
   EmptyState,
   Field,
   ManagerError,
   ManagerLoading,
   ManagerToolbar,
-  ReorderButtons,
 } from "./ManagerStates";
-import { moveInList, usePersistedReorder } from "./use-reorder";
+import { usePersistedReorder } from "./use-reorder";
 
 export const KNOWLEDGE_ICONS: Record<string, LucideIcon> = {
   Sparkles,
@@ -77,6 +80,7 @@ export const KNOWLEDGE_ICONS: Record<string, LucideIcon> = {
 };
 
 const ICON_NAMES = Object.keys(KNOWLEDGE_ICONS);
+const NEW_CATEGORY = "__new__";
 
 export default function KnowledgeManager() {
   const queryClient = useQueryClient();
@@ -91,16 +95,53 @@ export default function KnowledgeManager() {
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
   const [icon, setIcon] = useState("Sparkles");
-  const [order, setOrder] = useState(0);
   const [error, setError] = useState("");
+
+  // List controls — search + category filter.
+  const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+
+  const allItems = useMemo(() => data?.items ?? [], [data]);
+  const categories = useMemo(
+    () =>
+      Array.from(new Set(allItems.map((k) => k.category).filter(Boolean))).sort((a, b) =>
+        a.localeCompare(b)
+      ),
+    [allItems]
+  );
+
+  const needle = search.trim().toLowerCase();
+  const items = useMemo(
+    () =>
+      allItems.filter((k) => {
+        if (categoryFilter && k.category !== categoryFilter) return false;
+        if (!needle) return true;
+        return (
+          k.title.toLowerCase().includes(needle) ||
+          (k.description ?? "").toLowerCase().includes(needle) ||
+          k.category.toLowerCase().includes(needle)
+        );
+      }),
+    [allItems, categoryFilter, needle]
+  );
+  const filtering = needle.length > 0 || categoryFilter !== "";
+
+  const { persist } = usePersistedReorder("knowledge", ["admin", "knowledge"]);
+  const onReorder = (next: KnowledgeData[]) => void persist(next, "Order updated");
+  const onKeyboardMove = (visibleIndex: number, dir: -1 | 1) => {
+    const next = [...items];
+    const target = visibleIndex + dir;
+    if (target < 0 || target >= next.length) return;
+    [next[visibleIndex], next[target]] = [next[target], next[visibleIndex]];
+    onReorder(next);
+  };
 
   const openAdd = () => {
     setEditing(null);
     setTitle("");
     setDescription("");
-    setCategory("");
+    setCategory(categoryFilter || "");
     setIcon("Sparkles");
-    setOrder(data?.items.length ? Math.max(...data.items.map((k) => k.order)) + 1 : 0);
     setError("");
     setOpen(true);
   };
@@ -111,7 +152,6 @@ export default function KnowledgeManager() {
     setDescription(item.description ?? "");
     setCategory(item.category);
     setIcon(KNOWLEDGE_ICONS[item.icon] ? item.icon : "Sparkles");
-    setOrder(item.order);
     setError("");
     setOpen(true);
   };
@@ -140,24 +180,6 @@ export default function KnowledgeManager() {
     onError: (err: Error) => toast.error(err.message),
   });
 
-  const [search, setSearch] = useState("");
-  const allItems = data?.items ?? [];
-  const needle = search.trim().toLowerCase();
-  const items = needle
-    ? allItems.filter(
-        (k) =>
-          k.title.toLowerCase().includes(needle) ||
-          (k.description ?? "").toLowerCase().includes(needle) ||
-          k.category.toLowerCase().includes(needle)
-      )
-    : allItems;
-  const visibleIds = items.map((k) => k.id);
-  const { persist } = usePersistedReorder("knowledge", ["admin", "knowledge"]);
-  const onMove = (visibleIndex: number, dir: -1 | 1) => {
-    const next = moveInList(allItems, visibleIds, visibleIndex, dir);
-    if (next) persist(next, items[visibleIndex]?.title, dir);
-  };
-
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (!title.trim()) {
@@ -174,7 +196,6 @@ export default function KnowledgeManager() {
       description,
       category: category.trim(),
       icon,
-      order: Math.round(order || 0),
     });
   };
 
@@ -190,6 +211,13 @@ export default function KnowledgeManager() {
         searchPlaceholder="Search knowledge cards…"
         count={items.length}
         totalCount={allItems.length}
+        leading={
+          <CategorySelect
+            categories={categories}
+            value={categoryFilter}
+            onChange={setCategoryFilter}
+          />
+        }
       >
         <Button size="sm" onClick={openAdd}>
           <Plus className="size-4" aria-hidden />
@@ -202,62 +230,69 @@ export default function KnowledgeManager() {
           message={
             allItems.length === 0
               ? "No knowledge items yet. Add your first card."
-              : `No cards match “${search}”.`
+              : `No cards match “${search || categoryFilter}”.`
           }
         />
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
-          {items.map((item, index) => {
-            const IconComp = KNOWLEDGE_ICONS[item.icon] ?? Sparkles;
-            return (
-              <div
-                key={item.id}
-                className="flex items-start gap-3 rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/40"
-              >
-                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                  <IconComp className="size-4.5 text-primary" aria-hidden />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-start justify-between gap-2">
+        <>
+          {filtering ? (
+            <p className="flex items-center gap-2 rounded-lg border border-dashed border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+              <SearchX className="size-3.5 shrink-0" aria-hidden />
+              Drag is paused while filtering — clear the search & category to re-order.
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Drag the handle to choose the order the cards appear in.
+            </p>
+          )}
+
+          <DragList
+            items={items}
+            onReorder={onReorder}
+            onKeyboardMove={onKeyboardMove}
+            disabled={filtering}
+            className="space-y-0"
+            renderItem={(item, _index, handle) => {
+              const IconComp = KNOWLEDGE_ICONS[item.icon] ?? Sparkles;
+              return (
+                <div className="flex items-start gap-3 rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/40">
+                  <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                    <IconComp className="size-4.5 text-primary" aria-hidden />
+                  </div>
+                  <div className="min-w-0 flex-1">
                     <h3 className="truncate text-sm font-semibold">{item.title}</h3>
-                    <div className="flex shrink-0 items-center gap-1">
-                      <ReorderButtons
-                        onMove={onMove}
-                        index={index}
-                        total={items.length}
-                      />
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-8 text-muted-foreground"
-                        onClick={() => openEdit(item)}
-                        aria-label={`Edit ${item.title}`}
-                      >
-                        <Pencil className="size-4" aria-hidden />
-                      </Button>
-                      <ConfirmDeleteDialog
-                        title={`Delete “${item.title}”?`}
-                        description="This removes the card from the site. This action cannot be undone."
-                        onConfirm={() => remove.mutate(item.id)}
-                      />
+                    {item.description ? (
+                      <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+                        {item.description}
+                      </p>
+                    ) : null}
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <Badge variant="secondary">{item.category}</Badge>
+                      <span className="text-xs text-muted-foreground">icon: {item.icon}</span>
                     </div>
                   </div>
-                  {item.description ? (
-                    <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-                      {item.description}
-                    </p>
-                  ) : null}
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <Badge variant="secondary">{item.category}</Badge>
-                    <span className="text-xs text-muted-foreground">
-                      icon: {item.icon} · order {item.order}
-                    </span>
+                  <div className="flex shrink-0 items-center gap-1">
+                    {handle}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-8 text-muted-foreground"
+                      onClick={() => openEdit(item)}
+                      aria-label={`Edit ${item.title}`}
+                    >
+                      <Pencil className="size-4" aria-hidden />
+                    </Button>
+                    <ConfirmDeleteDialog
+                      title={`Delete “${item.title}”?`}
+                      description="This removes the card from the site. This action cannot be undone."
+                      onConfirm={() => remove.mutate(item.id)}
+                    />
                   </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            }}
+          />
+        </>
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
@@ -267,7 +302,7 @@ export default function KnowledgeManager() {
             <DialogDescription>Small feature cards with an icon and a blurb.</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-            <Field label="Title" htmlFor="kn-title">
+            <Field label="Title" htmlFor="kn-title" error={error && !title.trim() ? error : undefined}>
               <Input
                 id="kn-title"
                 value={title}
@@ -286,44 +321,79 @@ export default function KnowledgeManager() {
               />
             </Field>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Category" htmlFor="kn-category">
-                <Input
-                  id="kn-category"
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  placeholder="Infrastructure"
-                />
-              </Field>
-              <Field label="Order" htmlFor="kn-order" hint="Lower numbers appear first.">
-                <Input
-                  id="kn-order"
-                  type="number"
-                  value={order}
-                  onChange={(e) => setOrder(Number(e.target.value))}
-                />
-              </Field>
-            </div>
-            <Field label="Icon" htmlFor="kn-icon">
-              <Select value={icon} onValueChange={setIcon}>
-                <SelectTrigger id="kn-icon" className="w-full">
-                  <SelectValue placeholder="Choose an icon" />
-                </SelectTrigger>
-                <SelectContent>
-                  {ICON_NAMES.map((name) => {
-                    const IconComp = KNOWLEDGE_ICONS[name];
-                    return (
-                      <SelectItem key={name} value={name}>
-                        <span className="flex items-center gap-2">
-                          <IconComp className="size-4" aria-hidden />
-                          {name}
+              <Field
+                label="Category"
+                htmlFor="kn-category"
+                error={error && title.trim() && !category.trim() ? error : undefined}
+                hint="Pick an existing category or add a new one."
+              >
+                {category && !categories.includes(category) ? (
+                  // Custom category — editable input with a "back to list" affordance.
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="kn-category"
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value)}
+                      placeholder="Infrastructure"
+                      autoFocus={Boolean(editing) && !categories.includes(editing?.category ?? "")}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="shrink-0 text-muted-foreground"
+                      onClick={() => setCategory(categories[0] ?? "")}
+                      disabled={categories.length === 0}
+                    >
+                      Use existing
+                    </Button>
+                  </div>
+                ) : (
+                  <Select
+                    value={category || undefined}
+                    onValueChange={(v) => setCategory(v === NEW_CATEGORY ? "New category" : v)}
+                  >
+                    <SelectTrigger id="kn-category" className="w-full">
+                      <SelectValue placeholder="Choose a category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map((c) => (
+                        <SelectItem key={c} value={c}>
+                          {c}
+                        </SelectItem>
+                      ))}
+                      <SelectItem value={NEW_CATEGORY} className="text-primary">
+                        <span className="flex items-center gap-1.5">
+                          <Plus className="size-3.5" aria-hidden />
+                          New category…
                         </span>
                       </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
-            </Field>
-            {error ? (
+                    </SelectContent>
+                  </Select>
+                )}
+              </Field>
+              <Field label="Icon" htmlFor="kn-icon">
+                <Select value={icon} onValueChange={setIcon}>
+                  <SelectTrigger id="kn-icon" className="w-full">
+                    <SelectValue placeholder="Choose an icon" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ICON_NAMES.map((name) => {
+                      const IconComp = KNOWLEDGE_ICONS[name];
+                      return (
+                        <SelectItem key={name} value={name}>
+                          <span className="flex items-center gap-2">
+                            <IconComp className="size-4" aria-hidden />
+                            {name}
+                          </span>
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
+            {error && title.trim() && !category.trim() ? (
               <p className="text-xs text-destructive" role="alert">
                 {error}
               </p>

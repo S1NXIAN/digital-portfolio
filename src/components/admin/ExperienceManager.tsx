@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Loader2, Pencil, Plus } from "lucide-react";
+import { ArrowDown, Loader2, Pencil, Plus, SearchX } from "lucide-react";
 import type { ExperienceData } from "@/types/portfolio";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "./lib";
+import DragList from "./DragList";
 import {
   ConfirmDeleteDialog,
   EmptyState,
@@ -27,9 +28,8 @@ import {
   ManagerError,
   ManagerLoading,
   ManagerToolbar,
-  ReorderButtons,
 } from "./ManagerStates";
-import { moveInList, usePersistedReorder } from "./use-reorder";
+import { usePersistedReorder } from "./use-reorder";
 
 export default function ExperienceManager() {
   const queryClient = useQueryClient();
@@ -46,7 +46,6 @@ export default function ExperienceManager() {
   const [description, setDescription] = useState("");
   const [tech, setTech] = useState("");
   const [current, setCurrent] = useState(false);
-  const [order, setOrder] = useState(0);
   const [error, setError] = useState("");
 
   const openAdd = () => {
@@ -57,7 +56,6 @@ export default function ExperienceManager() {
     setDescription("");
     setTech("");
     setCurrent(false);
-    setOrder(data?.items.length ? Math.max(...data.items.map((x) => x.order)) + 1 : 0);
     setError("");
     setOpen(true);
   };
@@ -70,7 +68,6 @@ export default function ExperienceManager() {
     setDescription(item.description ?? "");
     setTech(item.tech ?? "");
     setCurrent(item.current);
-    setOrder(item.order);
     setError("");
     setOpen(true);
   };
@@ -100,23 +97,31 @@ export default function ExperienceManager() {
   });
 
   const [search, setSearch] = useState("");
-  const allItems = data?.items ?? [];
+  const allItems = useMemo(() => data?.items ?? [], [data]);
   const needle = search.trim().toLowerCase();
-  const items = needle
-    ? allItems.filter(
-        (x) =>
-          x.company.toLowerCase().includes(needle) ||
-          x.role.toLowerCase().includes(needle) ||
-          x.period.toLowerCase().includes(needle) ||
-          (x.tech ?? "").toLowerCase().includes(needle)
-      )
-    : allItems;
-  const visibleIds = items.map((x) => x.id);
+  const items = useMemo(
+    () =>
+      needle
+        ? allItems.filter(
+            (x) =>
+              x.company.toLowerCase().includes(needle) ||
+              x.role.toLowerCase().includes(needle) ||
+              x.period.toLowerCase().includes(needle) ||
+              (x.tech ?? "").toLowerCase().includes(needle)
+          )
+        : allItems,
+    [allItems, needle]
+  );
+  const filtering = needle.length > 0;
+
   const { persist } = usePersistedReorder("experiences", ["admin", "experiences"]);
-  const onMove = (visibleIndex: number, dir: -1 | 1) => {
-    const next = moveInList(allItems, visibleIds, visibleIndex, dir);
-    const it = items[visibleIndex];
-    if (next && it) persist(next, `${it.role} @ ${it.company}`, dir);
+  const onReorder = (next: ExperienceData[]) => void persist(next, "Timeline order updated");
+  const onKeyboardMove = (visibleIndex: number, dir: -1 | 1) => {
+    const next = [...items];
+    const target = visibleIndex + dir;
+    if (target < 0 || target >= next.length) return;
+    [next[visibleIndex], next[target]] = [next[target], next[visibleIndex]];
+    onReorder(next);
   };
 
   const handleSubmit = (e: FormEvent) => {
@@ -133,7 +138,6 @@ export default function ExperienceManager() {
       description,
       tech,
       current,
-      order: Math.round(order || 0),
     });
   };
 
@@ -165,74 +169,111 @@ export default function ExperienceManager() {
           }
         />
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
-          {items.map((item, index) => (
-            <div
-              key={item.id}
-              className="flex flex-col rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/40"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <h3 className="truncate text-sm font-semibold">
-                    {item.role} <span className="text-muted-foreground">@</span> {item.company}
-                  </h3>
-                  <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                    <span className="text-xs text-muted-foreground">{item.period}</span>
-                    {item.current ? (
-                      <Badge variant="secondary" className="gap-1.5">
-                        <span className="relative flex size-2">
-                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
-                          <span className="relative inline-flex size-2 rounded-full bg-primary" />
-                        </span>
-                        Current role
-                      </Badge>
+        <>
+          {filtering ? (
+            <p className="flex items-center gap-2 rounded-lg border border-dashed border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+              <SearchX className="size-3.5 shrink-0" aria-hidden />
+              Drag is paused while searching — clear the search to re-order the timeline.
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Drag the handle to set the order — this is exactly how the career timeline flows
+              on the site.
+            </p>
+          )}
+
+          <DragList
+            items={items}
+            onReorder={onReorder}
+            onKeyboardMove={onKeyboardMove}
+            disabled={filtering}
+            className="space-y-0"
+            renderItem={(item, index, handle, isLast) => (
+              <>
+                <div className="flex items-start gap-3 rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/40">
+                  {/* Sequence chip — the flow position of this card */}
+                  <span
+                    className={`mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg font-mono text-xs font-semibold tabular-nums ${
+                      item.current
+                        ? "bg-primary/15 text-primary"
+                        : "bg-muted text-muted-foreground"
+                    }`}
+                    aria-label={`Position ${index + 1}`}
+                  >
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-baseline gap-x-2">
+                      <h3 className="text-sm font-semibold">
+                        {item.role} <span className="text-muted-foreground">@</span> {item.company}
+                      </h3>
+                      {item.current ? (
+                        <Badge variant="secondary" className="gap-1.5">
+                          <span className="relative flex size-2">
+                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
+                            <span className="relative inline-flex size-2 rounded-full bg-primary" />
+                          </span>
+                          Current role
+                        </Badge>
+                      ) : null}
+                    </div>
+                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      <span>{item.period}</span>
+                    </div>
+                    {item.description ? (
+                      <p className="mt-2 line-clamp-3 text-xs leading-relaxed text-muted-foreground">
+                        {item.description}
+                      </p>
                     ) : null}
-                    <span className="text-xs text-muted-foreground">order {item.order}</span>
+                    {item.tech?.trim() ? (
+                      <div className="mt-3 flex flex-wrap gap-1.5">
+                        {item.tech
+                          .split(",")
+                          .map((t) => t.trim())
+                          .filter(Boolean)
+                          .map((t) => (
+                            <Badge key={t} variant="outline" className="px-1.5 py-0 text-[10px]">
+                              {t}
+                            </Badge>
+                          ))}
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div className="flex shrink-0 items-center gap-1">
+                    {handle}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-8 text-muted-foreground"
+                      onClick={() => openEdit(item)}
+                      aria-label={`Edit experience at ${item.company}`}
+                    >
+                      <Pencil className="size-4" aria-hidden />
+                    </Button>
+                    <ConfirmDeleteDialog
+                      title={`Delete “${item.role} @ ${item.company}”?`}
+                      description="This removes the position from the timeline. This action cannot be undone."
+                      onConfirm={() => remove.mutate(item.id)}
+                    />
                   </div>
                 </div>
-                <div className="flex shrink-0 items-center gap-1">
-                  <ReorderButtons
-                    onMove={onMove}
-                    index={index}
-                    total={items.length}
-                  />
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-8 text-muted-foreground"
-                    onClick={() => openEdit(item)}
-                    aria-label={`Edit experience at ${item.company}`}
-                  >
-                    <Pencil className="size-4" aria-hidden />
-                  </Button>
-                  <ConfirmDeleteDialog
-                    title={`Delete “${item.role} @ ${item.company}”?`}
-                    description="This removes the position from the timeline. This action cannot be undone."
-                    onConfirm={() => remove.mutate(item.id)}
-                  />
-                </div>
-              </div>
-              {item.description ? (
-                <p className="mt-2 line-clamp-3 text-xs leading-relaxed text-muted-foreground">
-                  {item.description}
-                </p>
-              ) : null}
-              {item.tech?.trim() ? (
-                <div className="mt-3 flex flex-wrap gap-1.5">
-                  {item.tech
-                    .split(",")
-                    .map((t) => t.trim())
-                    .filter(Boolean)
-                    .map((t) => (
-                      <Badge key={t} variant="outline" className="px-1.5 py-0 text-[10px]">
-                        {t}
-                      </Badge>
-                    ))}
-                </div>
-              ) : null}
-            </div>
-          ))}
-        </div>
+
+                {/* Flow connector — shows what comes next in the timeline */}
+                {!isLast ? (
+                  <div className="flex flex-col items-center py-0.5" aria-hidden="true">
+                    <span className="h-2.5 w-px bg-border" />
+                    <span className="flex size-5 items-center justify-center rounded-full border border-border bg-card text-muted-foreground">
+                      <ArrowDown className="size-3" />
+                    </span>
+                    <span className="h-2.5 w-px bg-border" />
+                  </div>
+                ) : null}
+              </>
+            )}
+          />
+        </>
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
@@ -240,7 +281,8 @@ export default function ExperienceManager() {
           <DialogHeader>
             <DialogTitle>{editing ? "Edit experience" : "Add experience"}</DialogTitle>
             <DialogDescription>
-              Positions appear on the career timeline, ordered by the order field.
+              Positions appear on the career timeline. Drag the cards in the list to choose
+              what comes first.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4" noValidate>
@@ -292,26 +334,16 @@ export default function ExperienceManager() {
                 placeholder="Go, PostgreSQL, Kubernetes"
               />
             </Field>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="flex items-center gap-3 rounded-lg border border-border p-3">
-                <Switch
-                  id="exp-current"
-                  checked={current}
-                  onCheckedChange={setCurrent}
-                  aria-label="Current role"
-                />
-                <Label htmlFor="exp-current" className="cursor-pointer font-normal">
-                  Current role
-                </Label>
-              </div>
-              <Field label="Order" htmlFor="exp-order" hint="Lower numbers appear first.">
-                <Input
-                  id="exp-order"
-                  type="number"
-                  value={order}
-                  onChange={(e) => setOrder(Number(e.target.value))}
-                />
-              </Field>
+            <div className="flex items-center gap-3 rounded-lg border border-border p-3">
+              <Switch
+                id="exp-current"
+                checked={current}
+                onCheckedChange={setCurrent}
+                aria-label="Current role"
+              />
+              <Label htmlFor="exp-current" className="cursor-pointer font-normal">
+                Current role
+              </Label>
             </div>
             {error ? (
               <p className="text-xs text-destructive" role="alert">

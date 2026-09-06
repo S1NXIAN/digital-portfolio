@@ -250,7 +250,7 @@ export default function ContributionsManager() {
       </div>
 
       {/* Section 1 — sync */}
-      <section className="rounded-xl border border-border bg-card p-6">
+      <section className="rounded-xl border border-border bg-card p-4 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <h2 className="text-sm font-semibold">Sync from GitHub</h2>
@@ -274,7 +274,7 @@ export default function ContributionsManager() {
 
         {/* schedule / status strip */}
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <div className="rounded-lg border border-border/60 bg-background/40 p-3">
+          <div className="min-w-0 rounded-lg border border-border/60 bg-background/40 p-3">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <CalendarClock className="size-3.5 text-primary" aria-hidden />
               Auto-sync schedule
@@ -282,7 +282,7 @@ export default function ContributionsManager() {
             <p className="mt-1.5 text-sm font-medium">Daily · 12:00 AM PH time</p>
             <p className="text-[11px] text-muted-foreground">Asia/Manila (UTC+8)</p>
           </div>
-          <div className="rounded-lg border border-border/60 bg-background/40 p-3">
+          <div className="min-w-0 rounded-lg border border-border/60 bg-background/40 p-3">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <RefreshCw className="size-3.5 text-primary" aria-hidden />
               Next auto-sync
@@ -294,7 +294,7 @@ export default function ContributionsManager() {
               {status ? phTime(status.nextRunAt) : "calculating…"}
             </p>
           </div>
-          <div className="rounded-lg border border-border/60 bg-background/40 p-3">
+          <div className="min-w-0 rounded-lg border border-border/60 bg-background/40 p-3">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               {lastRun && !lastRun.ok ? (
                 <CircleX className="size-3.5 text-destructive" aria-hidden />
@@ -418,7 +418,7 @@ export default function ContributionsManager() {
       </section>
 
       {/* Section 2 — add / adjust */}
-      <section className="rounded-xl border border-border bg-card p-6">
+      <section className="rounded-xl border border-border bg-card p-4 sm:p-6">
         <h2 className="text-sm font-semibold">Add / adjust a day</h2>
         <p className="mt-1 text-xs text-muted-foreground">
           Overwrite a day&apos;s total or stack extra commits on top of the synced count.
@@ -484,7 +484,7 @@ export default function ContributionsManager() {
       </section>
 
       {/* Section 3 — recent entries */}
-      <section className="rounded-xl border border-border bg-card p-6">
+      <section className="rounded-xl border border-border bg-card p-4 sm:p-6">
         <div className="flex items-center justify-between gap-3">
           <div>
             <h2 className="text-sm font-semibold">Recent entries</h2>
@@ -520,9 +520,9 @@ export default function ContributionsManager() {
               {entries.map((entry) => (
                 <li
                   key={entry.date}
-                  className="flex items-center gap-3 py-2.5 text-sm first:pt-0 last:pb-0"
+                  className="flex items-center gap-2 py-2.5 text-sm first:pt-0 last:pb-0 sm:gap-3"
                 >
-                  <span className="w-28 shrink-0 font-mono text-xs tabular-nums text-foreground">
+                  <span className="w-24 shrink-0 font-mono text-xs tabular-nums text-foreground sm:w-28">
                     {entry.date}
                   </span>
                   <Badge variant="secondary" className="tabular-nums">

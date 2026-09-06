@@ -20,19 +20,28 @@ function parseTopics(topics?: string): string[] {
 export default function Repos({ repos }: { repos: RepoData[] }) {
   const [langFilter, setLangFilter] = useState<string>("all");
 
+  // Repos synced from GitHub arrive unfeatured; once the owner stars at least
+  // one, the section curates itself down to the featured set. With zero
+  // featured rows (legacy data) everything is shown, so nothing disappears.
+  const hasFeatured = useMemo(() => repos.some((r) => r.featured), [repos]);
+  const curated = useMemo(
+    () => (hasFeatured ? repos.filter((r) => r.featured) : repos),
+    [repos, hasFeatured]
+  );
+
   const languages = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const repo of repos) {
+    for (const repo of curated) {
       const lang = repo.language?.trim();
       if (lang) counts.set(lang, (counts.get(lang) ?? 0) + 1);
     }
     return Array.from(counts.entries()).sort((a, b) => b[1] - a[1]);
-  }, [repos]);
+  }, [curated]);
 
   const visible = useMemo(() => {
-    if (langFilter === "all") return repos;
-    return repos.filter((r) => r.language?.trim() === langFilter);
-  }, [repos, langFilter]);
+    if (langFilter === "all") return curated;
+    return curated.filter((r) => r.language?.trim() === langFilter);
+  }, [curated, langFilter]);
 
   if (repos.length === 0) {
     return null;
@@ -52,7 +61,7 @@ export default function Repos({ repos }: { repos: RepoData[] }) {
             <div className="mt-10 flex flex-wrap items-center gap-2" role="group" aria-label="Filter repositories by language">
               <FilterChip
                 label="All"
-                count={repos.length}
+                count={curated.length}
                 active={langFilter === "all"}
                 onClick={() => setLangFilter("all")}
               />
