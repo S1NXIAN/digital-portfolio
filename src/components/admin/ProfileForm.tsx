@@ -263,10 +263,10 @@ function ProfileEditor({ profile }: { profile: ProfileData }) {
           <h2 className="text-sm font-semibold">Photo</h2>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
-          Pick any image, then drag and zoom to frame it exactly how you want — 512×512 JPEG.
+          Pick any image, then move and size the circle to frame it — 512×512 JPEG.
         </p>
-        <div className="mt-4 flex items-center gap-4">
-          <Avatar className="h-20 w-20 border border-border">
+        <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center">
+          <Avatar className="h-20 w-20 shrink-0 border border-border">
             {form.photoUrl ? (
               <AvatarImage src={form.photoUrl} alt="Profile photo preview" />
             ) : null}
@@ -274,7 +274,7 @@ function ProfileEditor({ profile }: { profile: ProfileData }) {
               <UserRound className="size-8 text-muted-foreground" aria-hidden />
             </AvatarFallback>
           </Avatar>
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <input
               ref={fileRef}
               type="file"
@@ -295,7 +295,7 @@ function ProfileEditor({ profile }: { profile: ProfileData }) {
             {form.photoUrl && /^(data:|\/)/.test(form.photoUrl) ? (
               <Button
                 type="button"
-                variant="ghost"
+                variant="outline"
                 size="sm"
                 className="h-8 text-muted-foreground"
                 onClick={() => setCropSrc(form.photoUrl)}
@@ -309,7 +309,7 @@ function ProfileEditor({ profile }: { profile: ProfileData }) {
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-8 text-muted-foreground"
+                className="h-8 text-muted-foreground hover:text-destructive"
                 onClick={() => set("photoUrl", "")}
               >
                 Remove photo

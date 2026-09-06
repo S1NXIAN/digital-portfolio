@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ImageOff, Loader2, ZoomIn } from "lucide-react";
+import { ImageOff, Loader2, Maximize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -14,13 +14,12 @@ import {
 import { Slider } from "@/components/ui/slider";
 
 const OUTPUT_SIZE = 512; // exported square size (matches the site's expectations)
-const MIN_ZOOM = 1;
-const MAX_ZOOM = 3;
-/** Crop-guide circle diameter, as a fraction of the viewport. */
-const GUIDE_RATIO = 0.78;
+/** Circle can shrink to 10% of the image's smaller side, but never below 8px. */
+const MIN_RADIUS_FRACTION = 0.1;
+const MIN_RADIUS_PX = 8;
 
-/** Camera state: zoom multiplier (over cover-fit) + pan offset in px. */
-type Camera = { zoom: number; x: number; y: number };
+/** Crop selection, in SOURCE IMAGE pixel coordinates (resolution-independent). */
+type Selection = { cx: number; cy: number; r: number };
 
 interface PhotoCropperProps {
   /** Image to crop — a data URL or a same-origin path. */
@@ -33,10 +32,11 @@ interface PhotoCropperProps {
 /**
  * Native (dependency-free) photo cropper for the admin profile.
  *
- * Drag to reposition, scroll or slider to zoom — the guide circle shows
- * how the crop will be presented on the site. Exports a 512×512 JPEG
- * data URL rendered from a canvas, so the admin controls exactly what
- * is visible instead of relying on an automatic center crop.
+ * The photo is shown contain-fit (always fully visible) with a movable,
+ * resizable circular selection on top: drag the circle to position it,
+ * drag its corner handle / scroll / use the slider to resize it — up
+ * until it touches the photo's edges. Exports a 512×512 JPEG data URL
+ * rendered from a canvas, so the admin controls exactly what is in frame.
  */
 export default function PhotoCropper({ src, open, onApply, onClose }: PhotoCropperProps) {
   const viewportRef = useRef<HTMLDivElement | null>(null);
@@ -46,15 +46,24 @@ export default function PhotoCropper({ src, open, onApply, onClose }: PhotoCropp
     img: HTMLImageElement | null;
     status: "loading" | "ready" | "error";
   }>({ src: null, img: null, status: "loading" });
-  const [cam, setCam] = useState<Camera>({ zoom: 1, x: 0, y: 0 });
-  const dragRef = useRef<{ pointerId: number; startX: number; startY: number; cam: Camera } | null>(
-    null
-  );
+  const [sel, setSel] = useState<Selection>({ cx: 0, cy: 0, r: 0 });
+  const dragRef = useRef<
+    | null
+    | {
+        pointerId: number;
+        mode: "move" | "resize";
+        rect: DOMRect;
+        startX: number;
+        startY: number;
+        start: Selection;
+      }
+  >(null);
 
   // "loading" is derived: anything newer than the last completed load.
   const imgState: "loading" | "ready" | "error" =
     src === null ? "loading" : load.src === src ? load.status : "loading";
   const img = load.src === src ? load.img : null;
+  const ready = imgState === "ready" && !!img && img.naturalWidth > 0;
 
   // Kick off the image decode whenever a new source comes in. State only
   // updates from the async callbacks — never synchronously in the effect.
@@ -65,7 +74,13 @@ export default function PhotoCropper({ src, open, onApply, onClose }: PhotoCropp
     image.onload = () => {
       if (cancelled) return;
       setLoad({ src, img: image, status: "ready" });
-      setCam({ zoom: 1, x: 0, y: 0 }); // fresh framing for the new source
+      // Fresh framing: the largest centered circle that fits the photo.
+      const half = Math.min(image.naturalWidth, image.naturalHeight) / 2;
+      setSel({
+        cx: image.naturalWidth / 2,
+        cy: image.naturalHeight / 2,
+        r: half,
+      });
     };
     image.onerror = () => {
       if (cancelled) return;
@@ -77,95 +92,92 @@ export default function PhotoCropper({ src, open, onApply, onClose }: PhotoCropp
     };
   }, [open, src]);
 
-  // Track the viewport's rendered size (it is responsive).
+  // Track the viewport's rendered size (it is responsive). offsetWidth is
+  // used deliberately: getBoundingClientRect is polluted by the dialog's
+  // entrance transform (scale .95 → 1), and a transform never fires the
+  // ResizeObserver — which once locked the cropper to a stale 304px box.
   useEffect(() => {
     if (!open) return;
     const el = viewportRef.current;
     if (!el) return;
-    const measure = () => setVpSize(el.getBoundingClientRect().width);
+    const measure = () => setVpSize(el.offsetWidth || Math.round(el.getBoundingClientRect().width));
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
   }, [open, imgState]);
 
-  /** Cover-fit scale of the source image into the viewport at zoom 1. */
-  const baseScale = useMemo(() => {
-    if (!img || vpSize === 0) return 1;
-    return Math.max(vpSize / img.naturalWidth, vpSize / img.naturalHeight);
-  }, [img, vpSize]);
+  /** Contain-fit scale: the whole photo is always visible. */
+  const containScale = useMemo(() => {
+    if (!ready || vpSize === 0) return 1;
+    return Math.min(vpSize / img.naturalWidth, vpSize / img.naturalHeight);
+  }, [ready, img, vpSize]);
 
-  const clampCam = useCallback(
-    (next: Camera): Camera => {
-      if (!img || vpSize === 0) return { zoom: MIN_ZOOM, x: 0, y: 0 };
-      const scale = baseScale * next.zoom;
-      const halfW = (img.naturalWidth * scale - vpSize) / 2;
-      const halfH = (img.naturalHeight * scale - vpSize) / 2;
+  const display = useMemo(() => {
+    if (!ready || vpSize === 0) return { w: 0, h: 0, x: 0, y: 0 };
+    const w = img.naturalWidth * containScale;
+    const h = img.naturalHeight * containScale;
+    return { w, h, x: (vpSize - w) / 2, y: (vpSize - h) / 2 };
+  }, [ready, img, containScale, vpSize]);
+
+  const clampSel = useCallback(
+    (next: Selection): Selection => {
+      if (!ready) return next;
+      const { naturalWidth: iw, naturalHeight: ih } = img;
+      // The circle must always sit fully inside the photo — r capped by the
+      // distance to each wall, then the center capped by that radius.
+      const rMin = Math.max(MIN_RADIUS_PX, Math.min(iw, ih) * MIN_RADIUS_FRACTION);
+      const r = Math.min(Math.max(next.r, rMin), Math.min(iw, ih) / 2);
       return {
-        zoom: Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, next.zoom)),
-        x: halfW > 0 ? Math.min(halfW, Math.max(-halfW, next.x)) : 0,
-        y: halfH > 0 ? Math.min(halfH, Math.max(-halfH, next.y)) : 0,
+        r,
+        cx: Math.min(Math.max(next.cx, r), iw - r),
+        cy: Math.min(Math.max(next.cy, r), ih - r),
       };
     },
-    [img, vpSize, baseScale]
+    [ready, img]
   );
 
-  /** Zoom keeping the point under viewport coords (cx, cy) stationary. */
-  const zoomAt = useCallback(
-    (prev: Camera, nextZoom: number, cx: number, cy: number): Camera => {
-      if (!img || vpSize === 0) return prev;
-      const target = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, nextZoom));
-      const f = target / prev.zoom;
-      if (!Number.isFinite(f) || f <= 0) return prev;
-      const scaleBefore = baseScale * prev.zoom;
-      const wBefore = img.naturalWidth * scaleBefore;
-      const hBefore = img.naturalHeight * scaleBefore;
-      const zoomAt = (c: number, off: number, size: number) => {
-        const topLeft = vpSize / 2 + off - size / 2;
-        const newTopLeft = c - (c - topLeft) * f;
-        return newTopLeft - vpSize / 2 + (size * f) / 2;
-      };
-      return clampCam({
-        zoom: target,
-        x: zoomAt(cx, prev.x, wBefore),
-        y: zoomAt(cy, prev.y, hBefore),
-      });
-    },
-    [img, vpSize, baseScale, clampCam]
-  );
-
-  // Non-passive wheel handler so page scroll doesn't fight the zoom.
+  // Non-passive wheel handler: scrolling over the crop resizes the circle.
   useEffect(() => {
     const el = viewportRef.current;
-    if (!open || imgState !== "ready" || !el) return;
+    if (!open || !ready || !el) return;
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      const rect = el.getBoundingClientRect();
-      const cx = e.clientX - rect.left;
-      const cy = e.clientY - rect.top;
-      const factor = e.deltaY < 0 ? 1.08 : 1 / 1.08;
-      setCam((prev) => zoomAt(prev, prev.zoom * factor, cx, cy));
+      const factor = e.deltaY < 0 ? 1.06 : 1 / 1.06;
+      setSel((prev) => clampSel({ ...prev, r: prev.r * factor }));
     };
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
-  }, [open, imgState, zoomAt]);
+  }, [open, ready, clampSel]);
 
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (imgState !== "ready") return;
+    if (!ready || dragRef.current) return;
+    const mode = (e.target as HTMLElement).closest("[data-crop-handle]") ? "resize" : "move";
     e.currentTarget.setPointerCapture(e.pointerId);
-    dragRef.current = { pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, cam };
+    dragRef.current = {
+      pointerId: e.pointerId,
+      mode,
+      rect: e.currentTarget.getBoundingClientRect(),
+      startX: e.clientX,
+      startY: e.clientY,
+      start: sel,
+    };
   };
 
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== e.pointerId) return;
-    setCam(
-      clampCam({
-        ...drag.cam,
-        x: drag.cam.x + (e.clientX - drag.startX),
-        y: drag.cam.y + (e.clientY - drag.startY),
-      })
-    );
+    if (drag.mode === "move") {
+      const dx = (e.clientX - drag.startX) / containScale;
+      const dy = (e.clientY - drag.startY) / containScale;
+      setSel(clampSel({ ...drag.start, cx: drag.start.cx + dx, cy: drag.start.cy + dy }));
+    } else {
+      // Resize: radius follows the handle's distance to the circle center.
+      const centerX = drag.rect.left + display.x + drag.start.cx * containScale;
+      const centerY = drag.rect.top + display.y + drag.start.cy * containScale;
+      const dist = Math.hypot(e.clientX - centerX, e.clientY - centerY);
+      setSel(clampSel({ ...drag.start, r: dist / containScale }));
+    }
   };
 
   const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -173,36 +185,28 @@ export default function PhotoCropper({ src, open, onApply, onClose }: PhotoCropp
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (imgState !== "ready") return;
-    const step = e.shiftKey ? 40 : 10;
-    const map: Record<string, () => Camera> = {
-      ArrowLeft: () => ({ ...cam, x: cam.x - step }),
-      ArrowRight: () => ({ ...cam, x: cam.x + step }),
-      ArrowUp: () => ({ ...cam, y: cam.y - step }),
-      ArrowDown: () => ({ ...cam, y: cam.y + step }),
-      "=": () => zoomAt(cam, cam.zoom * 1.1, vpSize / 2, vpSize / 2),
-      "+": () => zoomAt(cam, cam.zoom * 1.1, vpSize / 2, vpSize / 2),
-      "-": () => zoomAt(cam, cam.zoom / 1.1, vpSize / 2, vpSize / 2),
+    if (!ready) return;
+    const step = (e.shiftKey ? 40 : 10) / containScale;
+    const grow = 1.08;
+    const map: Record<string, () => Selection> = {
+      ArrowLeft: () => ({ ...sel, cx: sel.cx - step }),
+      ArrowRight: () => ({ ...sel, cx: sel.cx + step }),
+      ArrowUp: () => ({ ...sel, cy: sel.cy - step }),
+      ArrowDown: () => ({ ...sel, cy: sel.cy + step }),
+      "=": () => ({ ...sel, r: sel.r * grow }),
+      "+": () => ({ ...sel, r: sel.r * grow }),
+      "-": () => ({ ...sel, r: sel.r / grow }),
     };
     const action = map[e.key];
     if (!action) return;
     e.preventDefault();
-    setCam(clampCam(action()));
+    setSel(clampSel(action()));
   };
 
-  /** Render the exact viewport region to a 512×512 JPEG data URL. */
+  /** Render the circle's bounding square from the source to a 512×512 JPEG. */
   const applyCrop = () => {
-    if (!img || vpSize === 0) return;
-    const scale = baseScale * cam.zoom;
-    const renderedW = img.naturalWidth * scale;
-    const renderedH = img.naturalHeight * scale;
-    const topLeftX = vpSize / 2 + cam.x - renderedW / 2;
-    const topLeftY = vpSize / 2 + cam.y - renderedH / 2;
-    const sx = -topLeftX / scale;
-    const sy = -topLeftY / scale;
-    const sSize = vpSize / scale;
-    if (sSize <= 0) return;
-
+    if (!ready || sel.r <= 0) return;
+    const sSize = sel.r * 2;
     const canvas = document.createElement("canvas");
     canvas.width = OUTPUT_SIZE;
     canvas.height = OUTPUT_SIZE;
@@ -210,14 +214,16 @@ export default function PhotoCropper({ src, open, onApply, onClose }: PhotoCropp
     if (!ctx) return;
     ctx.fillStyle = "#ffffff"; // flatten transparency for JPEG
     ctx.fillRect(0, 0, OUTPUT_SIZE, OUTPUT_SIZE);
-    ctx.drawImage(img, sx, sy, sSize, sSize, 0, 0, OUTPUT_SIZE, OUTPUT_SIZE);
+    ctx.drawImage(img, sel.cx - sel.r, sel.cy - sel.r, sSize, sSize, 0, 0, OUTPUT_SIZE, OUTPUT_SIZE);
     onApply(canvas.toDataURL("image/jpeg", 0.85));
   };
 
-  const renderedW = img ? img.naturalWidth * baseScale * cam.zoom : 0;
-  const renderedH = img ? img.naturalHeight * baseScale * cam.zoom : 0;
-  const topLeftX = vpSize / 2 + cam.x - renderedW / 2;
-  const topLeftY = vpSize / 2 + cam.y - renderedH / 2;
+  // Screen-space geometry for the circle + handle.
+  const d = sel.r * 2 * containScale;
+  const left = display.x + (sel.cx - sel.r) * containScale;
+  const top = display.y + (sel.cy - sel.r) * containScale;
+  const halfMin = ready ? Math.min(img.naturalWidth, img.naturalHeight) / 2 : 1;
+  const rMin = ready ? Math.max(MIN_RADIUS_PX, halfMin * MIN_RADIUS_FRACTION) : 0;
 
   return (
     <Dialog
@@ -230,8 +236,8 @@ export default function PhotoCropper({ src, open, onApply, onClose }: PhotoCropp
         <DialogHeader>
           <DialogTitle>Crop photo</DialogTitle>
           <DialogDescription>
-            Drag to reposition, scroll or use the slider to zoom. The circle shows how the photo
-            will be presented — you control exactly what is in frame.
+            Drag the circle to frame your shot — drag its corner dot, scroll, or use the slider to
+            resize it. It can grow until it touches the photo&apos;s edges. Exports a 512×512 JPEG.
           </DialogDescription>
         </DialogHeader>
 
@@ -244,54 +250,72 @@ export default function PhotoCropper({ src, open, onApply, onClose }: PhotoCropp
           <>
             <div
               ref={viewportRef}
-              className="relative mx-auto aspect-square w-full max-w-[320px] cursor-grab touch-none select-none overflow-hidden rounded-xl border border-border bg-muted active:cursor-grabbing"
+              className="relative mx-auto aspect-square w-full max-w-[320px] cursor-grab touch-none select-none active:cursor-grabbing"
               tabIndex={0}
               role="application"
-              aria-label="Photo crop area — drag to pan, arrow keys to nudge, plus and minus to zoom"
+              aria-label="Photo crop area — drag the circle to move it, arrow keys to nudge, plus and minus to resize"
+              data-lenis-prevent
               onPointerDown={onPointerDown}
               onPointerMove={onPointerMove}
               onPointerUp={onPointerUp}
               onPointerCancel={onPointerUp}
               onKeyDown={onKeyDown}
             >
-              {imgState === "loading" ? (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <Loader2 className="size-6 animate-spin text-muted-foreground" aria-hidden />
+              {/* Clip layer — the photo and the dim-out must not bleed past
+                  the frame, but the resize handle lives OUTSIDE this layer so
+                  its 44px hit area stays draggable at the walls. */}
+              <div className="absolute inset-0 overflow-hidden rounded-xl border border-border bg-muted">
+                {imgState === "loading" ? (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Loader2 className="size-6 animate-spin text-muted-foreground" aria-hidden />
+                  </div>
+                ) : null}
+                {ready ? (
+                  <img
+                    src={src ?? undefined}
+                    alt=""
+                    draggable={false}
+                    className="pointer-events-none absolute max-w-none"
+                    style={{
+                      width: `${display.w}px`,
+                      height: `${display.h}px`,
+                      left: `${display.x}px`,
+                      top: `${display.y}px`,
+                    }}
+                  />
+                ) : null}
+                {/* Circular crop selection — dims everything outside it */}
+                {ready ? (
+                  <div
+                    className="pointer-events-none absolute z-10 rounded-full shadow-[0_0_0_9999px_rgba(0,0,0,0.55)] ring-2 ring-white/80"
+                    style={{ left: `${left}px`, top: `${top}px`, width: `${d}px`, height: `${d}px` }}
+                    aria-hidden
+                  />
+                ) : null}
+              </div>
+              {/* Resize handle — unclipped, 44px hit area, visual dot on top */}
+              {ready ? (
+                <div
+                  data-crop-handle
+                  className="absolute z-20 flex size-11 cursor-nwse-resize touch-none items-center justify-center rounded-full"
+                  style={{ left: `${left + d}px`, top: `${top + d}px`, transform: "translate(-50%, -50%)" }}
+                  aria-hidden
+                >
+                  <span className="size-3.5 rounded-full bg-white shadow-md ring-2 ring-black/30" />
                 </div>
               ) : null}
-              {img && imgState === "ready" ? (
-                <img
-                  src={src ?? undefined}
-                  alt=""
-                  draggable={false}
-                  className="pointer-events-none absolute max-w-none"
-                  style={{
-                    width: `${renderedW}px`,
-                    height: `${renderedH}px`,
-                    left: `${topLeftX}px`,
-                    top: `${topLeftY}px`,
-                  }}
-                />
-              ) : null}
-              {/* Circular crop guide */}
-              <div className="pointer-events-none absolute inset-0" aria-hidden>
-                <div
-                  className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full shadow-[0_0_0_9999px_rgba(0,0,0,0.55)] ring-2 ring-white/80"
-                  style={{ width: `${GUIDE_RATIO * 100}%`, height: `${GUIDE_RATIO * 100}%` }}
-                />
-              </div>
             </div>
 
             <div className="flex items-center gap-3">
-              <ZoomIn className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+              <Maximize2 className="size-4 shrink-0 text-muted-foreground" aria-hidden />
               <Slider
-                value={[cam.zoom]}
-                min={MIN_ZOOM}
-                max={MAX_ZOOM}
-                step={0.01}
-                onValueChange={([z]) => setCam((prev) => zoomAt(prev, z, vpSize / 2, vpSize / 2))}
-                disabled={imgState !== "ready"}
-                aria-label="Zoom"
+                value={[sel.r]}
+                min={rMin}
+                max={Math.max(halfMin, rMin)}
+                step={1}
+                onValueChange={([r]) => setSel((prev) => clampSel({ ...prev, r }))}
+                disabled={!ready}
+                aria-label="Crop size"
               />
             </div>
           </>
@@ -301,7 +325,7 @@ export default function PhotoCropper({ src, open, onApply, onClose }: PhotoCropp
           <Button type="button" variant="ghost" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="button" onClick={applyCrop} disabled={imgState !== "ready"}>
+          <Button type="button" onClick={applyCrop} disabled={!ready}>
             Apply crop
           </Button>
         </DialogFooter>
