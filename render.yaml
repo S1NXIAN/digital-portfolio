@@ -36,7 +36,7 @@ services:
       bunx prisma db push
       bun run build
       bun run scripts/seed.ts
-    startCommand: NODE_ENV=production bun .next/standalone/server.js
+    startCommand: HOSTNAME=0.0.0.0 NODE_ENV=production bun .next/standalone/server.js
     envVars:
       - key: DATABASE_URL
         # Absolute path — relative file: URLs break under Next standalone output.
