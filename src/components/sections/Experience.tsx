@@ -1,12 +1,23 @@
 "use client";
 
-import { useRef } from "react";
-import { motion, useScroll, useSpring } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
+import {
+  motion,
+  useScroll,
+  useSpring,
+  useTransform,
+  type MotionValue,
+} from "framer-motion";
 import { Briefcase } from "lucide-react";
 import Reveal from "@/components/motion/Reveal";
 import SectionHeading from "@/components/sections/SectionHeading";
 import { Badge } from "@/components/ui/badge";
 import type { ExperienceData } from "@/types/portfolio";
+
+/** The rail is inset 8px (top-2/bottom-2) inside the timeline container. */
+const RAIL_INSET = 8;
+/** Progress the line tip must travel past a dot before it is fully lit. */
+const LIGHT_WINDOW = 0.035;
 
 export default function Experience({ experiences }: { experiences: ExperienceData[] }) {
   const lineRef = useRef<HTMLDivElement>(null);
@@ -15,6 +26,41 @@ export default function Experience({ experiences }: { experiences: ExperienceDat
     offset: ["start 75%", "end 55%"],
   });
   const progress = useSpring(scrollYProgress, { stiffness: 90, damping: 24, mass: 0.4 });
+
+  // Measured fraction (0..1) of the rail where each dot sits. A dot lights up
+  // when the tip of the progress line reaches that fraction — same spring
+  // drives both the line and the dots, so they can never drift apart.
+  const [fractions, setFractions] = useState<number[]>([]);
+
+  useEffect(() => {
+    const root = lineRef.current;
+    if (!root) return;
+
+    const measure = () => {
+      const rail = root.getBoundingClientRect();
+      const railTop = rail.top + RAIL_INSET;
+      const railLen = Math.max(rail.height - RAIL_INSET * 2, 1);
+      const dots = Array.from(root.querySelectorAll<HTMLElement>("[data-timeline-dot]"));
+      const next = dots.map((dot) => {
+        const r = dot.getBoundingClientRect();
+        return (r.top + r.height / 2 - railTop) / railLen;
+      });
+      setFractions((prev) =>
+        prev.length === next.length && prev.every((v, i) => Math.abs(v - next[i]) < 0.002)
+          ? prev
+          : next,
+      );
+    };
+
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(root);
+    window.addEventListener("resize", measure);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [experiences.length]);
 
   return (
     <section id="experience" className="relative py-24 sm:py-28" aria-label="Work experience">
@@ -37,20 +83,11 @@ export default function Experience({ experiences }: { experiences: ExperienceDat
           <ol className="space-y-10">
             {experiences.map((exp, i) => (
               <li key={exp.id} className="relative">
-                <span
-                  className={`absolute -left-8 top-2 flex h-[15px] w-[15px] -translate-x-[4px] items-center justify-center sm:-left-12 ${
-                    exp.current ? "animate-pulse-ring" : ""
-                  }`}
-                  aria-hidden
-                >
-                  <span
-                    className={`h-[11px] w-[11px] rounded-full border-2 ${
-                      exp.current
-                        ? "border-primary bg-primary"
-                        : "border-border bg-background"
-                    }`}
-                  />
-                </span>
+                <TimelineDot
+                  progress={progress}
+                  fraction={fractions[i] ?? Number.POSITIVE_INFINITY}
+                  current={exp.current}
+                />
 
                 <Reveal delay={i * 0.06}>
                   <article className="group rounded-2xl border border-border/60 bg-card/60 p-6 backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xl hover:shadow-primary/[0.05] sm:p-7">
@@ -112,6 +149,43 @@ export default function Experience({ experiences }: { experiences: ExperienceDat
         </div>
       </div>
     </section>
+  );
+}
+
+/**
+ * A timeline dot that lights up (fades to the lit style) exactly when the
+ * progress line tip reaches it. Purely motion-value driven — no re-renders,
+ * and it un-lights when scrolling back up.
+ */
+function TimelineDot({
+  progress,
+  fraction,
+  current,
+}: {
+  progress: MotionValue<number>;
+  fraction: number;
+  current: boolean;
+}) {
+  // Not measured yet → park the range where the line can never reach it.
+  const f = Number.isFinite(fraction) ? fraction : 2;
+  const litOpacity = useTransform(progress, [f, f + LIGHT_WINDOW], [0, 1]);
+
+  return (
+    <span
+      data-timeline-dot
+      className="absolute -left-8 top-2 flex h-[15px] w-[15px] items-center justify-center sm:-left-12"
+      aria-hidden
+    >
+      {/* unlit base dot */}
+      <span className="h-[11px] w-[11px] rounded-full border-2 border-border bg-background" />
+      {/* lit dot — appears the moment the line reaches this dot */}
+      <motion.span
+        style={{ opacity: litOpacity }}
+        className={`absolute inset-0 flex items-center justify-center ${current ? "animate-pulse-ring" : ""}`}
+      >
+        <span className="h-[11px] w-[11px] rounded-full border-2 border-primary bg-primary" />
+      </motion.span>
+    </span>
   );
 }
 
