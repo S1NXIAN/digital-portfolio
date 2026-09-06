@@ -96,9 +96,9 @@ export default function Hero({
             transition={{ duration: 0.55 }}
             className="flex flex-wrap items-center gap-3"
           >
-            <span className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-card/60 px-3.5 py-1.5 text-xs font-medium text-muted-foreground backdrop-blur">
-              <span className="animate-pulse-ring inline-block h-2 w-2 rounded-full bg-primary" />
-              {profile.availability || "Open to work"}
+            <span className="inline-flex min-w-0 max-w-full items-center gap-2 rounded-full border border-border/70 bg-card/60 px-3.5 py-1.5 text-xs font-medium text-muted-foreground backdrop-blur">
+              <span className="animate-pulse-ring inline-block h-2 w-2 shrink-0 rounded-full bg-primary" />
+              <span className="break-words">{profile.availability || "Open to work"}</span>
             </span>
             {profile.location ? (
               <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -133,7 +133,7 @@ export default function Hero({
               initial={{ opacity: 0, y: 18 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.68, duration: 0.6 }}
-              className="mt-6 max-w-xl leading-relaxed text-muted-foreground"
+              className="mt-6 max-w-xl break-words leading-relaxed text-muted-foreground"
             >
               {profile.bio}
             </motion.p>

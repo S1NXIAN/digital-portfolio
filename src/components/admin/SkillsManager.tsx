@@ -38,7 +38,9 @@ import {
   SortToggle,
 } from "./ManagerStates";
 import IconPicker from "./IconPicker";
+import { ShowMoreButton, useProgressiveReveal } from "./progressive-reveal";
 import { sortSubsetInPlace, usePersistedReorder, type SortDir } from "./use-reorder";
+import { LIMITS } from "@/lib/limits";
 
 const FALLBACK_CATEGORIES = ["Languages", "Frontend", "Backend", "DevOps & Cloud", "Tools"];
 
@@ -86,6 +88,7 @@ export default function SkillsManager() {
       }),
     [allItems, categoryFilter, needle]
   );
+  const reveal = useProgressiveReveal(items);
 
   const { persist } = usePersistedReorder("skills", ["admin", "skills"]);
   const onSort = (dir: SortDir) => {
@@ -204,7 +207,7 @@ export default function SkillsManager() {
         />
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
-          {items.map((skill) => (
+          {reveal.visible.map((skill) => (
             <div
               key={skill.id}
               className="group rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/40"
@@ -259,6 +262,14 @@ export default function SkillsManager() {
         </div>
       )}
 
+      {reveal.isTruncated ? (
+        <ShowMoreButton
+          hiddenCount={reveal.hiddenCount}
+          onShowMore={reveal.showMore}
+          onShowAll={reveal.showAll}
+        />
+      ) : null}
+
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -276,6 +287,7 @@ export default function SkillsManager() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="TypeScript"
+                  maxLength={LIMITS.skillName}
                   autoFocus
                   aria-invalid={Boolean(error && !name.trim())}
                 />
@@ -306,6 +318,7 @@ export default function SkillsManager() {
                 onChange={(e) => setCategory(e.target.value)}
                 list="skill-categories"
                 placeholder="Backend"
+                maxLength={LIMITS.skillCategory}
               />
               <datalist id="skill-categories">
                 {(editorCategories.length > 0
@@ -335,6 +348,7 @@ export default function SkillsManager() {
                   onChange={(e) => setIcon(e.target.value)}
                   placeholder="typescript · or paste any image URL"
                   className="min-w-0 flex-1"
+                  maxLength={LIMITS.skillIcon}
                   spellCheck={false}
                 />
                 <Button

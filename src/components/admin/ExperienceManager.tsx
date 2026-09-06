@@ -3,8 +3,9 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowDown, Loader2, Pencil, Plus, SearchX } from "lucide-react";
+import { ArrowDown, ListCollapse, Loader2, Pencil, Plus, SearchX } from "lucide-react";
 import type { ExperienceData } from "@/types/portfolio";
+import { LIMITS } from "@/lib/limits";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,6 +22,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "./lib";
 import DragList from "./DragList";
+import { ShowMoreButton, useProgressiveReveal } from "./progressive-reveal";
 import {
   ConfirmDeleteDialog,
   EmptyState,
@@ -113,6 +115,7 @@ export default function ExperienceManager() {
     [allItems, needle]
   );
   const filtering = needle.length > 0;
+  const reveal = useProgressiveReveal(items);
 
   const { persist } = usePersistedReorder("experiences", ["admin", "experiences"]);
   const onReorder = (next: ExperienceData[]) => void persist(next, "Timeline order updated");
@@ -183,10 +186,10 @@ export default function ExperienceManager() {
           )}
 
           <DragList
-            items={items}
+            items={reveal.visible}
             onReorder={onReorder}
             onKeyboardMove={onKeyboardMove}
-            disabled={filtering}
+            disabled={filtering || reveal.isTruncated}
             className="space-y-1.5"
             renderItem={(item, index, handle, isLast) => (
               <>
@@ -273,6 +276,20 @@ export default function ExperienceManager() {
               </>
             )}
           />
+
+          {reveal.isTruncated ? (
+            <>
+              <p className="flex items-center gap-2 rounded-lg border border-dashed border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                <ListCollapse className="size-3.5 shrink-0" aria-hidden />
+                Drag is paused while the list is collapsed — use “Show all” to re-order.
+              </p>
+              <ShowMoreButton
+                hiddenCount={reveal.hiddenCount}
+                onShowMore={reveal.showMore}
+                onShowAll={reveal.showAll}
+              />
+            </>
+          ) : null}
         </>
       )}
 
@@ -293,6 +310,7 @@ export default function ExperienceManager() {
                   value={company}
                   onChange={(e) => setCompany(e.target.value)}
                   placeholder="Acme Corp"
+                  maxLength={LIMITS.company}
                   autoFocus
                 />
               </Field>
@@ -302,6 +320,7 @@ export default function ExperienceManager() {
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
                   placeholder="Senior Backend Engineer"
+                  maxLength={LIMITS.role}
                 />
               </Field>
             </div>
@@ -311,6 +330,7 @@ export default function ExperienceManager() {
                 value={period}
                 onChange={(e) => setPeriod(e.target.value)}
                 placeholder="2022 — Present"
+                maxLength={LIMITS.period}
               />
             </Field>
             <Field label="Description" htmlFor="exp-description">
@@ -320,6 +340,7 @@ export default function ExperienceManager() {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="What you built, led or improved…"
+                maxLength={LIMITS.experienceDescription}
               />
             </Field>
             <Field
@@ -332,6 +353,7 @@ export default function ExperienceManager() {
                 value={tech}
                 onChange={(e) => setTech(e.target.value)}
                 placeholder="Go, PostgreSQL, Kubernetes"
+                maxLength={LIMITS.tech}
               />
             </Field>
             <div className="flex items-center gap-3 rounded-lg border border-border p-3">

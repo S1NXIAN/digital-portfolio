@@ -44,7 +44,7 @@ export default function Footer({
               {profile.email ? (
                 <button
                   onClick={copyEmail}
-                  className="group mt-3 inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/50 px-4 py-2 font-mono text-sm text-muted-foreground transition-all duration-300 hover:border-primary/50 hover:text-primary"
+                  className="group mt-3 inline-flex max-w-full items-center gap-2 break-all rounded-full border border-border/60 bg-background/50 px-4 py-2 font-mono text-sm text-muted-foreground transition-all duration-300 hover:border-primary/50 hover:text-primary"
                   aria-label={`Copy email address ${profile.email}`}
                 >
                   {profile.email}
@@ -72,7 +72,7 @@ export default function Footer({
             <div className="h-px w-full max-w-md bg-gradient-to-r from-transparent via-border to-transparent" aria-hidden />
 
             <div className="flex w-full flex-col items-center justify-between gap-4 text-xs text-muted-foreground sm:flex-row">
-              <p>
+              <p className="break-words">
                 © {year} {profile.name}. Built with{" "}
                 <span className="text-foreground">Next.js</span>,{" "}
                 <span className="text-foreground">Framer Motion</span> &{" "}

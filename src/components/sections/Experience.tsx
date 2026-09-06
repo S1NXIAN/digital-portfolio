@@ -134,7 +134,7 @@ export default function Experience({ experiences }: { experiences: ExperienceDat
                           .map((tech) => (
                             <li
                               key={tech}
-                              className="rounded-md border border-border/60 bg-muted/50 px-2 py-0.5 font-mono text-[11px] text-muted-foreground transition-colors group-hover:border-primary/25"
+                              className="max-w-full break-all rounded-md border border-border/60 bg-muted/50 px-2 py-0.5 font-mono text-[11px] text-muted-foreground transition-colors group-hover:border-primary/25"
                             >
                               {tech}
                             </li>
@@ -209,7 +209,7 @@ function ExperienceDescription({ description }: { description: string }) {
   }
 
   if (bullets.length === 0) {
-    return <p className="mt-4 leading-relaxed text-muted-foreground">{content}</p>;
+    return <p className="mt-4 break-words leading-relaxed text-muted-foreground">{content}</p>;
   }
 
   return (
@@ -217,7 +217,7 @@ function ExperienceDescription({ description }: { description: string }) {
       {paragraphs.length > 0 ? (
         <div className="space-y-2">
           {paragraphs.map((p, i) => (
-            <p key={i} className="leading-relaxed text-muted-foreground">
+            <p key={i} className="break-words leading-relaxed text-muted-foreground">
               {p}
             </p>
           ))}
@@ -230,7 +230,7 @@ function ExperienceDescription({ description }: { description: string }) {
               className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-primary/70"
               aria-hidden
             />
-            <span className="leading-relaxed">{b}</span>
+            <span className="min-w-0 break-words leading-relaxed">{b}</span>
           </li>
         ))}
       </ul>

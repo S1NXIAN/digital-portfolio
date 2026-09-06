@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { api } from "./lib";
 import { Field } from "./ManagerStates";
+import { LIMITS } from "@/lib/limits";
 
 export default function SettingsForm() {
   const [currentPasscode, setCurrentPasscode] = useState("");
@@ -63,6 +64,7 @@ export default function SettingsForm() {
               value={currentPasscode}
               onChange={(e) => setCurrentPasscode(e.target.value)}
               autoComplete="current-password"
+              maxLength={LIMITS.passcode + 100}
               aria-invalid={Boolean(errors.current)}
             />
           </Field>
@@ -73,6 +75,7 @@ export default function SettingsForm() {
               value={newPasscode}
               onChange={(e) => setNewPasscode(e.target.value)}
               autoComplete="new-password"
+              maxLength={LIMITS.passcode}
               aria-invalid={Boolean(errors.new)}
             />
           </Field>
@@ -83,6 +86,7 @@ export default function SettingsForm() {
               value={confirmNew}
               onChange={(e) => setConfirmNew(e.target.value)}
               autoComplete="new-password"
+              maxLength={LIMITS.passcode}
               aria-invalid={Boolean(errors.confirm)}
             />
           </Field>

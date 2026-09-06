@@ -6,33 +6,35 @@
  * on every request, we serve the last payload for PORTFOLIO_CACHE_TTL_MS and
  * invalidate eagerly from every admin write path (create/update/delete/reorder).
  *
- * Single-process server => a module Map is a correct, dependency-free cache.
+ * The payload is serialized to a JSON string ONCE when cached — serving a
+ * cache hit then becomes a zero-copy Response, instead of re-running
+ * JSON.stringify over (potentially) megabytes on every request. This keeps
+ * p95 flat even when the payload is large or the endpoint is flooded.
+ *
+ * Single-process server => a module variable is a correct, dependency-free
+ * cache.
  */
-
-interface CacheEntry<T> {
-  value: T;
-  expiresAt: number;
-}
 
 const TTL_MS = Number(process.env.PORTFOLIO_CACHE_TTL_MS ?? 20_000); // 20s default
 
-type PortfolioPayload = unknown;
-let entry: CacheEntry<PortfolioPayload> | null = null;
+let serialized: string | null = null;
+let expiresAt = 0;
 
-export function getPortfolioCache(): PortfolioPayload | null {
-  if (!entry) return null;
-  if (Date.now() > entry.expiresAt) {
-    entry = null;
+export function getPortfolioCache(): string | null {
+  if (!serialized) return null;
+  if (Date.now() > expiresAt) {
+    serialized = null;
     return null;
   }
-  return entry.value;
+  return serialized;
 }
 
-export function setPortfolioCache(value: PortfolioPayload): void {
-  entry = { value, expiresAt: Date.now() + TTL_MS };
+export function setPortfolioCache(value: unknown): void {
+  serialized = JSON.stringify(value);
+  expiresAt = Date.now() + TTL_MS;
 }
 
 /** Called by every admin mutation so the public site reflects changes instantly. */
 export function invalidatePortfolioCache(): void {
-  entry = null;
+  serialized = null;
 }

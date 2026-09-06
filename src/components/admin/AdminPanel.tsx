@@ -366,6 +366,7 @@ function LoginScreen() {
                 onChange={(e) => setPasscode(e.target.value)}
                 placeholder="••••••••"
                 autoComplete="current-password"
+                maxLength={201}
                 autoFocus
                 className="pr-10"
                 aria-invalid={Boolean(error)}

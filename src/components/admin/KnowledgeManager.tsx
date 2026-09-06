@@ -14,6 +14,7 @@ import {
   Gauge,
   GitBranch,
   Layers,
+  ListCollapse,
   Loader2,
   Network,
   Pencil,
@@ -49,6 +50,8 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "./lib";
 import DragList from "./DragList";
+import { ShowMoreButton, useProgressiveReveal } from "./progressive-reveal";
+import { LIMITS } from "@/lib/limits";
 import {
   CategorySelect,
   ConfirmDeleteDialog,
@@ -125,6 +128,7 @@ export default function KnowledgeManager() {
     [allItems, categoryFilter, needle]
   );
   const filtering = needle.length > 0 || categoryFilter !== "";
+  const reveal = useProgressiveReveal(items);
 
   const { persist } = usePersistedReorder("knowledge", ["admin", "knowledge"]);
   const onReorder = (next: KnowledgeData[]) => void persist(next, "Order updated");
@@ -247,10 +251,10 @@ export default function KnowledgeManager() {
           )}
 
           <DragList
-            items={items}
+            items={reveal.visible}
             onReorder={onReorder}
             onKeyboardMove={onKeyboardMove}
-            disabled={filtering}
+            disabled={filtering || reveal.isTruncated}
             className="space-y-3"
             renderItem={(item, _index, handle) => {
               const IconComp = KNOWLEDGE_ICONS[item.icon] ?? Sparkles;
@@ -292,6 +296,20 @@ export default function KnowledgeManager() {
               );
             }}
           />
+
+          {reveal.isTruncated ? (
+            <>
+              <p className="flex items-center gap-2 rounded-lg border border-dashed border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                <ListCollapse className="size-3.5 shrink-0" aria-hidden />
+                Drag is paused while the list is collapsed — use “Show all” to re-order.
+              </p>
+              <ShowMoreButton
+                hiddenCount={reveal.hiddenCount}
+                onShowMore={reveal.showMore}
+                onShowAll={reveal.showAll}
+              />
+            </>
+          ) : null}
         </>
       )}
 
@@ -308,6 +326,7 @@ export default function KnowledgeManager() {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Distributed systems"
+                maxLength={LIMITS.knowledgeTitle}
                 autoFocus
               />
             </Field>
@@ -318,6 +337,7 @@ export default function KnowledgeManager() {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="A one-liner about this area of expertise…"
+                maxLength={LIMITS.knowledgeDescription}
               />
             </Field>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -335,6 +355,7 @@ export default function KnowledgeManager() {
                       value={category}
                       onChange={(e) => setCategory(e.target.value)}
                       placeholder="Infrastructure"
+                      maxLength={LIMITS.knowledgeCategory}
                       autoFocus={Boolean(editing) && !categories.includes(editing?.category ?? "")}
                     />
                     <Button

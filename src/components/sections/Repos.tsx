@@ -85,6 +85,7 @@ export default function Repos({ repos }: { repos: RepoData[] }) {
               <motion.div
                 key={repo.id}
                 layout
+                className="min-w-0"
                 initial={{ opacity: 0, y: 16, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.96 }}
@@ -110,7 +111,7 @@ export default function Repos({ repos }: { repos: RepoData[] }) {
                             <h3 className="truncate font-mono text-base font-semibold tracking-tight group-hover:text-primary">
                               {repo.name}
                             </h3>
-                            <p className="font-mono text-[11px] text-muted-foreground">
+                            <p className="truncate font-mono text-[11px] text-muted-foreground">
                               {repo.url.replace(/^https?:\/\/(www\.)?/, "")}
                             </p>
                           </div>
@@ -138,7 +139,7 @@ export default function Repos({ repos }: { repos: RepoData[] }) {
                           {parseTopics(repo.topics).map((topic) => (
                             <li
                               key={topic}
-                              className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-muted/50 px-2 py-0.5 font-mono text-[10px] text-muted-foreground transition-colors group-hover:border-primary/25"
+                              className="inline-flex max-w-full items-center gap-1 break-all rounded-full border border-border/60 bg-muted/50 px-2 py-0.5 font-mono text-[10px] text-muted-foreground transition-colors group-hover:border-primary/25"
                             >
                               <Tag className="h-2.5 w-2.5" aria-hidden />
                               {topic}
@@ -197,7 +198,7 @@ function FilterChip({
       type="button"
       aria-pressed={active}
       onClick={onClick}
-      className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-medium transition-all duration-200 ${
+      className={`inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-medium transition-all duration-200 ${
         active
           ? "border-primary/60 bg-primary/10 text-primary"
           : "border-border/70 bg-card/50 text-muted-foreground hover:border-primary/35 hover:text-foreground"
@@ -205,14 +206,14 @@ function FilterChip({
     >
       {dotColor ? (
         <span
-          className="h-2 w-2 rounded-full"
+          className="h-2 w-2 shrink-0 rounded-full"
           style={{ backgroundColor: dotColor }}
           aria-hidden
         />
       ) : null}
-      {label}
+      <span className="min-w-0 max-w-[12rem] truncate">{label}</span>
       <span
-        className={`rounded-full px-1.5 py-0.5 text-[10px] tabular-nums ${
+        className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] tabular-nums ${
           active ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"
         }`}
       >

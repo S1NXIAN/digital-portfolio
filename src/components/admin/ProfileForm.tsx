@@ -43,6 +43,7 @@ import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "./lib";
 import { Field } from "./ManagerStates";
+import { LIMITS } from "@/lib/limits";
 import PhotoCropper from "./PhotoCropper";
 
 const SOCIAL_ICONS = [
@@ -338,6 +339,7 @@ function ProfileEditor({ profile }: { profile: ProfileData }) {
               value={form.name}
               onChange={(e) => set("name", e.target.value)}
               placeholder="Alex Carter"
+              maxLength={LIMITS.name}
               aria-invalid={Boolean(errors.name)}
             />
           </Field>
@@ -347,6 +349,7 @@ function ProfileEditor({ profile }: { profile: ProfileData }) {
               value={form.headline}
               onChange={(e) => set("headline", e.target.value)}
               placeholder="Backend engineer & systems tinkerer"
+              maxLength={LIMITS.headline}
               aria-invalid={Boolean(errors.headline)}
             />
           </Field>
@@ -357,6 +360,7 @@ function ProfileEditor({ profile }: { profile: ProfileData }) {
               value={form.email}
               onChange={(e) => set("email", e.target.value)}
               placeholder="alex@example.com"
+              maxLength={LIMITS.email}
               aria-invalid={Boolean(errors.email)}
             />
           </Field>
@@ -366,6 +370,7 @@ function ProfileEditor({ profile }: { profile: ProfileData }) {
               value={form.location}
               onChange={(e) => set("location", e.target.value)}
               placeholder="Berlin, Germany"
+              maxLength={LIMITS.location}
             />
           </Field>
           <Field label="Availability" htmlFor="pf-availability">
@@ -374,6 +379,7 @@ function ProfileEditor({ profile }: { profile: ProfileData }) {
               value={form.availability}
               onChange={(e) => set("availability", e.target.value)}
               placeholder="Open to freelance work"
+              maxLength={LIMITS.availability}
             />
           </Field>
           <Field label="GitHub username" htmlFor="pf-github">
@@ -382,6 +388,7 @@ function ProfileEditor({ profile }: { profile: ProfileData }) {
               value={form.githubUsername}
               onChange={(e) => set("githubUsername", e.target.value)}
               placeholder="octocat"
+              maxLength={LIMITS.githubUsername}
             />
           </Field>
           <Field label="Resume URL" htmlFor="pf-resume">
@@ -390,6 +397,7 @@ function ProfileEditor({ profile }: { profile: ProfileData }) {
               value={form.resumeUrl}
               onChange={(e) => set("resumeUrl", e.target.value)}
               placeholder="https://…/resume.pdf"
+              maxLength={LIMITS.resumeUrl}
             />
           </Field>
           <Field label="Years of experience" htmlFor="pf-years">
@@ -421,6 +429,7 @@ function ProfileEditor({ profile }: { profile: ProfileData }) {
               value={form.bio}
               onChange={(e) => set("bio", e.target.value)}
               placeholder="A short story about what you build and why."
+              maxLength={LIMITS.bio}
             />
           </Field>
           <Field label="Motto" htmlFor="pf-motto">
@@ -430,6 +439,7 @@ function ProfileEditor({ profile }: { profile: ProfileData }) {
               value={form.motto}
               onChange={(e) => set("motto", e.target.value)}
               placeholder="Ship small, ship often."
+              maxLength={LIMITS.motto}
             />
           </Field>
           <Field
@@ -443,6 +453,7 @@ function ProfileEditor({ profile }: { profile: ProfileData }) {
               value={form.rotatingWords}
               onChange={(e) => set("rotatingWords", e.target.value)}
               placeholder={"backend systems\nopen source\ndistributed tooling"}
+              maxLength={LIMITS.rotatingWordsCount * (LIMITS.rotatingWord + 1) + 20}
             />
           </Field>
         </div>
@@ -464,6 +475,7 @@ function ProfileEditor({ profile }: { profile: ProfileData }) {
             type="button"
             variant="outline"
             size="sm"
+            disabled={form.socials.length >= LIMITS.socialsCount}
             onClick={() =>
               set("socials", [...form.socials, { label: "", url: "", icon: "Globe" }])
             }
@@ -487,12 +499,14 @@ function ProfileEditor({ profile }: { profile: ProfileData }) {
                   value={social.label}
                   onChange={(e) => updateSocial(i, { label: e.target.value })}
                   placeholder="Label"
+                  maxLength={LIMITS.socialLabel}
                   aria-label={`Social ${i + 1} label`}
                 />
                 <Input
                   value={social.url}
                   onChange={(e) => updateSocial(i, { url: e.target.value })}
                   placeholder="https://…"
+                  maxLength={LIMITS.socialUrl}
                   aria-label={`Social ${i + 1} URL`}
                 />
                 <Select
