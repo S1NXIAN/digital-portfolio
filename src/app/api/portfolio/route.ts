@@ -39,16 +39,20 @@ async function loadPortfolio() {
 
 export async function GET() {
   try {
+    // Cache stores the pre-serialized JSON string, so hits skip both the DB
+    // and JSON.stringify — flat latency even with large payloads.
     const cached = getPortfolioCache();
     if (cached) {
-      return Response.json(cached, {
-        headers: { "X-Cache": "HIT" },
+      return new Response(cached, {
+        headers: { "content-type": "application/json", "X-Cache": "HIT" },
       });
     }
 
     const data = await loadPortfolio();
     setPortfolioCache(data);
-    return Response.json(data, { headers: { "X-Cache": "MISS" } });
+    return new Response(JSON.stringify(data), {
+      headers: { "content-type": "application/json", "X-Cache": "MISS" },
+    });
   } catch (err) {
     console.error("portfolio GET failed", err);
     return Response.json({ error: "Failed to load portfolio" }, { status: 500 });

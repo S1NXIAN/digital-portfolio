@@ -98,7 +98,7 @@ export default function About({
                 .map((para, i) => (
                   <p
                     key={i}
-                    className={`leading-relaxed text-muted-foreground ${
+                    className={`break-words leading-relaxed text-muted-foreground ${
                       i === 0 ? "text-lg sm:text-xl" : "text-base sm:text-lg"
                     }`}
                   >
@@ -128,12 +128,12 @@ export default function About({
                           <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
                             <Icon className="h-5 w-5" aria-hidden />
                           </span>
-                          <Badge variant="secondary" className="font-mono text-[10px] uppercase tracking-wider">
-                            {item.category}
+                          <Badge variant="secondary" className="max-w-full font-mono text-[10px] uppercase tracking-wider">
+                            <span className="break-all">{item.category}</span>
                           </Badge>
                         </div>
-                        <h4 className="mt-4 font-semibold tracking-tight">{item.title}</h4>
-                        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                        <h4 className="mt-4 break-words font-semibold tracking-tight">{item.title}</h4>
+                        <p className="mt-2 break-words text-sm leading-relaxed text-muted-foreground">
                           {item.description}
                         </p>
                       </article>

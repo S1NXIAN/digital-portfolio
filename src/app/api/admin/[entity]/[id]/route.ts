@@ -2,6 +2,8 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { isAuthed, unauthorized } from "@/lib/admin-auth";
 import { invalidatePortfolioCache } from "@/lib/portfolio-cache";
+import { guardBodySize } from "@/lib/rate-limit";
+import { LIMITS, MAX_BODY_BYTES } from "@/lib/limits";
 import { skillIconSchema } from "@/lib/skill-icon-schema";
 
 export const dynamic = "force-dynamic";
@@ -13,37 +15,37 @@ type LooseDelegate = {
 
 const entities = {
   skills: { delegate: "skill" as const, schema: z.object({
-    name: z.string().min(1).optional(),
-    category: z.string().min(1).optional(),
+    name: z.string().min(1).max(LIMITS.skillName).optional(),
+    category: z.string().min(1).max(LIMITS.skillCategory).optional(),
     level: z.coerce.number().int().min(0).max(100).optional(),
     order: z.coerce.number().int().optional(),
     icon: skillIconSchema.optional(),
   }) },
   experiences: { delegate: "experience" as const, schema: z.object({
-    company: z.string().min(1).optional(),
-    role: z.string().min(1).optional(),
-    period: z.string().min(1).optional(),
-    description: z.string().optional(),
-    tech: z.string().optional(),
+    company: z.string().min(1).max(LIMITS.company).optional(),
+    role: z.string().min(1).max(LIMITS.role).optional(),
+    period: z.string().min(1).max(LIMITS.period).optional(),
+    description: z.string().max(LIMITS.experienceDescription).optional(),
+    tech: z.string().max(LIMITS.tech).optional(),
     current: z.coerce.boolean().optional(),
     order: z.coerce.number().int().optional(),
   }) },
   repos: { delegate: "repo" as const, schema: z.object({
-    name: z.string().min(1).optional(),
-    description: z.string().optional(),
-    url: z.string().url("Must be a valid URL").optional(),
-    language: z.string().optional(),
-    topics: z.string().optional(),
+    name: z.string().min(1).max(LIMITS.repoName).optional(),
+    description: z.string().max(LIMITS.repoDescription).optional(),
+    url: z.string().url("Must be a valid URL").max(LIMITS.repoUrl).optional(),
+    language: z.string().max(LIMITS.language).optional(),
+    topics: z.string().max(LIMITS.topics).optional(),
     stars: z.coerce.number().int().min(0).optional(),
     forks: z.coerce.number().int().min(0).optional(),
     featured: z.coerce.boolean().optional(),
     order: z.coerce.number().int().optional(),
   }) },
   knowledge: { delegate: "knowledgeItem" as const, schema: z.object({
-    title: z.string().min(1).optional(),
-    description: z.string().optional(),
-    category: z.string().min(1).optional(),
-    icon: z.string().optional(),
+    title: z.string().min(1).max(LIMITS.knowledgeTitle).optional(),
+    description: z.string().max(LIMITS.knowledgeDescription).optional(),
+    category: z.string().min(1).max(LIMITS.knowledgeCategory).optional(),
+    icon: z.string().max(LIMITS.knowledgeIcon).optional(),
     order: z.coerce.number().int().optional(),
   }) },
 };
@@ -57,6 +59,8 @@ export async function PUT(
   ctx: { params: Promise<{ entity: string; id: string }> }
 ) {
   if (!(await isAuthed(req))) return unauthorized();
+  const tooBig = guardBodySize(req, MAX_BODY_BYTES);
+  if (tooBig) return tooBig;
   const { entity, id } = await ctx.params;
   const cfg = get(entity);
   if (!cfg) return Response.json({ error: "Unknown entity" }, { status: 404 });

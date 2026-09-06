@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { isAuthed, unauthorized } from "@/lib/admin-auth";
 import { invalidatePortfolioCache } from "@/lib/portfolio-cache";
+import { LIMITS } from "@/lib/limits";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +12,7 @@ export const dynamic = "force-dynamic";
  * Body: { ids: string[] } in the desired final order — order = array index.
  * Static segment wins over [id], so this never collides with item routes.
  */
-const bodySchema = z.object({ ids: z.array(z.string()).min(1) });
+const bodySchema = z.object({ ids: z.array(z.string()).min(1).max(LIMITS.maxReorderIds) });
 
 const delegates: Record<string, string> = {
   skills: "skill",

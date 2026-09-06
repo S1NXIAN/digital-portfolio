@@ -104,11 +104,11 @@ export default function Skills({ skills }: { skills: SkillData[] }) {
                   className="mb-5 break-inside-avoid"
                 >
                   <div className="@container rounded-2xl border border-border/60 bg-card/60 p-6 backdrop-blur transition-colors duration-300 hover:border-primary/30">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-mono text-xs font-semibold uppercase tracking-[0.2em] text-primary">
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="break-all font-mono text-xs font-semibold uppercase tracking-[0.2em] text-primary">
                         {category}
                       </h3>
-                      <span className="rounded-full bg-muted px-2.5 py-0.5 text-[11px] text-muted-foreground">
+                      <span className="shrink-0 rounded-full bg-muted px-2.5 py-0.5 text-[11px] text-muted-foreground">
                         {items.length} skills
                       </span>
                     </div>
@@ -122,15 +122,15 @@ export default function Skills({ skills }: { skills: SkillData[] }) {
                       {items.map((skill, i) => (
                         <li key={skill.id}>
                           <div className="flex items-baseline justify-between gap-3">
-                            <span className="flex items-center gap-2 text-sm font-medium">
+                            <span className="flex min-w-0 items-center gap-2 text-sm font-medium">
                               <StackIcon
                                 name={skill.name}
                                 icon={skill.icon}
                                 className="size-4 shrink-0"
                               />
-                              {skill.name}
+                              <span className="min-w-0 break-all">{skill.name}</span>
                             </span>
-                            <span className="font-mono text-xs tabular-nums text-muted-foreground">
+                            <span className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground">
                               {skill.level}%
                             </span>
                           </div>
@@ -182,15 +182,15 @@ function FilterChip({
       role="tab"
       aria-selected={active}
       onClick={onClick}
-      className={`relative rounded-full border px-3.5 py-1.5 text-xs font-medium transition-all duration-200 ${
+      className={`inline-flex min-w-0 max-w-full items-center rounded-full border px-3.5 py-1.5 text-xs font-medium transition-all duration-200 ${
         active
           ? "border-primary/60 bg-primary/10 text-primary"
           : "border-border/70 bg-card/50 text-muted-foreground hover:border-primary/35 hover:text-foreground"
       }`}
     >
-      {label}
+      <span className="min-w-0 max-w-[12rem] truncate">{label}</span>
       <span
-        className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] tabular-nums ${
+        className={`ml-1.5 shrink-0 rounded-full px-1.5 py-0.5 text-[10px] tabular-nums ${
           active ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"
         }`}
       >

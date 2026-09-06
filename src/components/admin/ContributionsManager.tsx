@@ -31,6 +31,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api, todayKey } from "./lib";
 import { ConfirmDeleteDialog, Field, ManagerError } from "./ManagerStates";
+import { LIMITS } from "@/lib/limits";
 
 interface SyncLastRun {
   at: string;
@@ -353,6 +354,7 @@ export default function ContributionsManager() {
                 onChange={(e) => setTokenInput(e.target.value)}
                 placeholder={status?.tokenConfigured ? "•••••••••••• (saved)" : "ghp_xxxxxxxxxxxx"}
                 autoComplete="off"
+                maxLength={LIMITS.githubToken}
                 aria-label="GitHub token"
               />
               <button
@@ -461,6 +463,7 @@ export default function ContributionsManager() {
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder="private repo work"
+              maxLength={80}
             />
           </Field>
           {formError ? (

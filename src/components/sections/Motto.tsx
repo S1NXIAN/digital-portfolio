@@ -41,7 +41,7 @@ export default function Motto({ profile }: { profile: ProfileData }) {
         </motion.span>
 
         <blockquote className="mt-8">
-          <p className="text-3xl font-semibold leading-snug tracking-tight sm:text-4xl lg:text-[2.9rem] lg:leading-[1.25]">
+          <p className="break-words text-3xl font-semibold leading-snug tracking-tight sm:text-4xl lg:text-[2.9rem] lg:leading-[1.25]">
             &ldquo;
             {words.map((word, i) => (
               <motion.span

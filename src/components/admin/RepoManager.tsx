@@ -10,6 +10,7 @@ import {
   CloudDownload,
   ExternalLink,
   GitFork,
+  ListCollapse,
   Loader2,
   Pencil,
   Plus,
@@ -17,6 +18,7 @@ import {
   Star,
 } from "lucide-react";
 import type { RepoData } from "@/types/portfolio";
+import { LIMITS } from "@/lib/limits";
 import { langColor } from "@/lib/lang-colors";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -34,6 +36,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "./lib";
 import DragList from "./DragList";
+import { ShowMoreButton, useProgressiveReveal } from "./progressive-reveal";
 import {
   ConfirmDeleteDialog,
   EmptyState,
@@ -169,6 +172,7 @@ export default function RepoManager() {
     [allItems, needle]
   );
   const filtering = needle.length > 0;
+  const reveal = useProgressiveReveal(items);
 
   const { persist } = usePersistedReorder("repos", ["admin", "repos"]);
   const onReorder = (next: RepoData[]) => void persist(next, "Repo order updated");
@@ -429,11 +433,18 @@ export default function RepoManager() {
             </p>
           )}
 
+          {reveal.isTruncated ? (
+            <p className="flex items-center gap-2 rounded-lg border border-dashed border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+              <ListCollapse className="size-3.5 shrink-0" aria-hidden />
+              Drag is paused while the list is collapsed — use “Show all” to re-order.
+            </p>
+          ) : null}
+
           <DragList
-            items={items}
+            items={reveal.visible}
             onReorder={onReorder}
             onKeyboardMove={onKeyboardMove}
-            disabled={filtering}
+            disabled={filtering || reveal.isTruncated}
             className="space-y-3"
             renderItem={(repo, _index, handle) => (
               <div className="rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/40">
@@ -540,6 +551,14 @@ export default function RepoManager() {
               </div>
             )}
           />
+
+          {reveal.isTruncated ? (
+            <ShowMoreButton
+              hiddenCount={reveal.hiddenCount}
+              onShowMore={reveal.showMore}
+              onShowAll={reveal.showAll}
+            />
+          ) : null}
         </>
       )}
 
@@ -562,6 +581,7 @@ export default function RepoManager() {
                   onChange={(e) => setUrl(e.target.value)}
                   placeholder="https://github.com/you/awesome-project"
                   className="min-w-0 flex-1"
+                  maxLength={LIMITS.repoUrl}
                 />
                 <Button
                   type="button"
@@ -589,6 +609,7 @@ export default function RepoManager() {
                   onChange={(e) => setName(e.target.value)}
                   placeholder="awesome-project"
                   className="font-mono"
+                  maxLength={LIMITS.repoName}
                 />
               </Field>
               <div className="flex items-center gap-3 rounded-lg border border-border p-3 sm:mt-0">
@@ -610,6 +631,7 @@ export default function RepoManager() {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="What it does and why it matters…"
+                maxLength={LIMITS.repoDescription}
               />
             </Field>
             <div className="grid gap-4 sm:grid-cols-3">
@@ -619,6 +641,7 @@ export default function RepoManager() {
                   value={language}
                   onChange={(e) => setLanguage(e.target.value)}
                   placeholder="Go"
+                  maxLength={LIMITS.language}
                 />
               </Field>
               <Field label="Stars" htmlFor="repo-stars">
@@ -650,6 +673,7 @@ export default function RepoManager() {
                 value={topics}
                 onChange={(e) => setTopics(e.target.value)}
                 placeholder="react, ai, cli"
+                maxLength={LIMITS.topics}
               />
             </Field>
             {error && url.trim() && !url.trim().startsWith("https://") ? (

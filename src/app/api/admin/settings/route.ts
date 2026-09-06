@@ -1,12 +1,17 @@
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { isAuthed, unauthorized } from "@/lib/admin-auth";
+import { guardBodySize } from "@/lib/rate-limit";
+import { LIMITS } from "@/lib/limits";
 
 export const dynamic = "force-dynamic";
 
 const changeSchema = z.object({
-  currentPasscode: z.string().min(1),
-  newPasscode: z.string().min(4, "New passcode must be at least 4 characters"),
+  currentPasscode: z.string().min(1).max(LIMITS.passcode + 100),
+  newPasscode: z
+    .string()
+    .min(4, "New passcode must be at least 4 characters")
+    .max(LIMITS.passcode),
 });
 
 export async function GET(req: Request) {
@@ -17,6 +22,8 @@ export async function GET(req: Request) {
 
 export async function PUT(req: Request) {
   if (!(await isAuthed(req))) return unauthorized();
+  const tooBig = guardBodySize(req, 4_096);
+  if (tooBig) return tooBig;
   try {
     const { currentPasscode, newPasscode } = changeSchema.parse(await req.json());
     const existing = await db.setting.findUnique({ where: { key: "adminPasscode" } });
