@@ -160,3 +160,4 @@ This repository includes a `render.yaml` Blueprint spec:
 | `bun run db:push` | Sync Prisma schema with database |
 | `bun run db:seed` | Seed database with default portfolio data |
 | `bun run lint` | Run ESLint across codebase |
+| `bun run ping` | Start curl self-ping loop every 14 minutes |

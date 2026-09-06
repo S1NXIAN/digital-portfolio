@@ -11,7 +11,8 @@
     "db:seed": "bun run scripts/seed.ts",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
-    "db:reset": "prisma migrate reset"
+    "db:reset": "prisma migrate reset",
+    "ping": "bash scripts/self-ping.sh"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

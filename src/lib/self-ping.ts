@@ -7,7 +7,7 @@
  *
  * Toggle via environment variables:
  *   SELF_PING_ENABLED=true        → turn the pinger on ("true" only)
- *   SELF_PING_INTERVAL_MIN=10     → minutes between pings (default 10)
+ *   SELF_PING_INTERVAL_MIN=14     → minutes between pings (default 14)
  *   SELF_PING_URL=                → optional explicit target. On Render it
  *                                    defaults to $RENDER_EXTERNAL_URL/api so
  *                                    pings count as real external traffic;
@@ -23,7 +23,7 @@ export function startSelfPing(): void {
   if (process.env.SELF_PING_ENABLED !== "true") return;
   globalForPing.__pfSelfPingStarted = true;
 
-  const minutes = Math.max(1, Number(process.env.SELF_PING_INTERVAL_MIN ?? 10) || 10);
+  const minutes = Math.max(1, Number(process.env.SELF_PING_INTERVAL_MIN ?? 14) || 14);
   const port = process.env.PORT ?? "3000";
   const external = process.env.RENDER_EXTERNAL_URL?.replace(/\/$/, "");
   const target =
