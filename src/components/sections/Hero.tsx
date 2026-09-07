@@ -128,6 +128,94 @@ function NameReveal({ name }: { name: string }) {
   );
 }
 
+/**
+ * The hero bio: clamped to a few lines with a native ellipsis so a long bio
+ * never bloats the hero (worst on small viewports). Click toggles expand /
+ * collapse with a soft height morph + crossfade — the top lines are identical
+ * text in both copies, so nothing visible shifts except the reveal itself.
+ */
+function ExpandableBio({ text }: { text: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const [heights, setHeights] = useState({ clamped: 0, full: 0 });
+  const clampRef = useRef<HTMLSpanElement>(null);
+  const fullRef = useRef<HTMLSpanElement>(null);
+
+  // Measure both layouts so we know whether the text actually overflows the
+  // clamp (short bios should not look clickable) and can animate to real px.
+  useEffect(() => {
+    const measure = () => {
+      const clamped = clampRef.current?.offsetHeight ?? 0;
+      const full = fullRef.current?.offsetHeight ?? 0;
+      setHeights((prev) =>
+        prev.clamped === clamped && prev.full === full ? prev : { clamped, full },
+      );
+    };
+    measure();
+    document.fonts?.ready.then(measure).catch(() => {});
+    const ro = new ResizeObserver(measure);
+    if (fullRef.current) ro.observe(fullRef.current);
+    window.addEventListener("resize", measure);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [text]);
+
+  // Unmeasured yet → assume it can expand rather than dead-ending a long bio.
+  const overflowing = heights.full === 0 || heights.full > heights.clamped + 4;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 18 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.68, duration: 0.6 }}
+      className="mt-6 max-w-xl"
+    >
+      <button
+        type="button"
+        onClick={() => overflowing && setExpanded((v) => !v)}
+        aria-expanded={overflowing ? expanded : undefined}
+        className={`-m-2 block w-full rounded-lg p-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 ${
+          overflowing ? "cursor-pointer" : "cursor-default"
+        }`}
+      >
+        <motion.div
+          initial={false}
+          animate={{ height: expanded ? "auto" : heights.clamped === 0 ? "auto" : heights.clamped }}
+          transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+          className="relative overflow-hidden"
+        >
+          {/* collapsed copy — native line-clamp draws the "…".
+              No `block` class here: it would override line-clamp's
+              display:-webkit-box and silently kill the ellipsis. */}
+          <span
+            ref={clampRef}
+            aria-hidden
+            className={`break-words leading-relaxed text-muted-foreground transition-opacity duration-300 ${
+              expanded
+                ? "pointer-events-none absolute inset-x-0 top-0 opacity-0"
+                : "line-clamp-3 opacity-100 sm:line-clamp-4"
+            }`}
+          >
+            {text}
+          </span>
+          {/* full copy — the accessible one; revealed as the box grows */}
+          <span
+            ref={fullRef}
+            className={`block break-words leading-relaxed text-muted-foreground transition-opacity duration-300 ${
+              expanded
+                ? "relative opacity-100"
+                : "pointer-events-none absolute inset-x-0 top-0 opacity-0"
+            }`}
+          >
+            {text}
+          </span>
+        </motion.div>
+      </button>
+    </motion.div>
+  );
+}
+
 export default function Hero({
   profile,
   totalCommits,
@@ -200,8 +288,7 @@ export default function Hero({
             <RotatingWords words={profile.rotatingWords} />
           </motion.div>
 
-          {/* Bio intentionally lives once, in the About section ("01 — about")
-              — repeating it here duplicated a full paragraph one screen later. */}
+          {profile.bio ? <ExpandableBio text={profile.bio} /> : null}
 
           <motion.div
             initial={{ opacity: 0, y: 18 }}

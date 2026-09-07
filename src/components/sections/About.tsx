@@ -23,7 +23,7 @@ import Reveal from "@/components/motion/Reveal";
 import Tilt from "@/components/motion/Tilt";
 import SectionHeading from "@/components/sections/SectionHeading";
 import { Badge } from "@/components/ui/badge";
-import type { KnowledgeData, ProfileData } from "@/types/portfolio";
+import type { KnowledgeData } from "@/types/portfolio";
 
 const KNOWLEDGE_ICONS: Record<string, LucideIcon> = {
   Sparkles,
@@ -44,47 +44,20 @@ const KNOWLEDGE_ICONS: Record<string, LucideIcon> = {
   BookOpen,
 };
 
-export default function About({
-  profile,
-  knowledge,
-}: {
-  profile: ProfileData;
-  knowledge: KnowledgeData[];
-}) {
+export default function About({ knowledge }: { knowledge: KnowledgeData[] }) {
   return (
     <section id="about" className="relative py-24 sm:py-28" aria-label="About and knowledge">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <SectionHeading
           eyebrow="01 — about"
           title="What I do, and how I think"
-          description="A quick snapshot of the craft behind the commits."
+          description="The ideas and disciplines behind the work."
         />
 
-        {/* Stats deliberately live only in the hero — this section is the
-            narrative (bio + knowledge), not a second copy of the counters. */}
-        {profile.bio ? (
-          <Reveal delay={0.1} className="mt-12 max-w-3xl">
-            <div className="space-y-4">
-              {profile.bio
-                .split(/\n{2,}|\r\n{2,}/)
-                .map((para) => para.trim())
-                .filter(Boolean)
-                .map((para, i) => (
-                  <p
-                    key={i}
-                    className={`break-words leading-relaxed text-muted-foreground ${
-                      i === 0 ? "text-lg sm:text-xl" : "text-base sm:text-lg"
-                    }`}
-                  >
-                    {para}
-                  </p>
-                ))}
-            </div>
-          </Reveal>
-        ) : null}
-
+        {/* The bio lives in the hero (ExpandableBio) — this section is the
+            knowledge map, not a second copy of the intro. */}
         {knowledge.length > 0 ? (
-          <div className="mt-16">
+          <div className="mt-12">
             <Reveal>
               <h3 className="flex items-center gap-2 text-xl font-semibold tracking-tight">
                 <Sparkles className="h-5 w-5 text-primary" aria-hidden />
