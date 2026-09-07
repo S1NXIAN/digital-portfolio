@@ -2,10 +2,43 @@
 
 import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import {
+  AppWindow,
+  Boxes,
+  Braces,
+  Brain,
+  Code2,
+  Database,
+  Palette,
+  Workflow,
+  type LucideIcon,
+} from "lucide-react";
 import Reveal from "@/components/motion/Reveal";
 import SectionHeading from "@/components/sections/SectionHeading";
 import StackIcon from "@/components/StackIcon";
 import type { SkillData } from "@/types/portfolio";
+
+/**
+ * Categories are free-form admin data, so tile icons come from a keyword
+ * match with a neutral fallback — any custom category still gets a coherent
+ * mark instead of a bare text header.
+ */
+const CATEGORY_ICON_RULES: ReadonlyArray<readonly [RegExp, LucideIcon]> = [
+  [/api|backend|server|integrat/i, Braces],
+  [/design|motion|art|brand/i, Palette],
+  [/front|web|client|ui\b/i, AppWindow],
+  [/lang/i, Code2],
+  [/workflow|ops|devops|cloud|git/i, Workflow],
+  [/data|db\b|sql/i, Database],
+  [/ai|llm|prompt|rag|model/i, Brain],
+];
+
+function categoryIcon(category: string): LucideIcon {
+  for (const [pattern, icon] of CATEGORY_ICON_RULES) {
+    if (pattern.test(category)) return icon;
+  }
+  return Boxes;
+}
 
 export default function Skills({ skills }: { skills: SkillData[] }) {
   const [activeCategory, setActiveCategory] = useState<string>("all");
@@ -70,48 +103,67 @@ export default function Skills({ skills }: { skills: SkillData[] }) {
           and the browser balances the columns, so heavily imbalanced categories
           (e.g. 18 languages vs 5 frontend) never stretch or leave dead space.
         */}
-        <div className="mt-8 columns-1 gap-5 md:columns-2">
-          <AnimatePresence mode="popLayout" initial={false}>
-            {visible.map(([category, items]) => (
-              <motion.div
-                key={category}
-                layout
-                initial={{ opacity: 0, y: 16, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.96 }}
-                transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
-                className="mb-5 break-inside-avoid"
-              >
-                <div className="rounded-2xl border border-border/60 bg-card/60 p-6 backdrop-blur transition-colors duration-300 hover:border-primary/30">
-                  <div className="flex items-center justify-between gap-2">
-                    <h3 className="break-all font-mono text-xs font-semibold uppercase tracking-[0.2em] text-primary">
-                      {category}
-                    </h3>
-                    <span className="shrink-0 rounded-full bg-muted px-2.5 py-0.5 text-[11px] text-muted-foreground">
-                      {items.length} skills
-                    </span>
-                  </div>
-                  {/* Chip cloud — the stack speaks for itself; no invented metrics. */}
-                  <ul className="mt-4 flex flex-wrap gap-2">
-                    {items.map((skill) => (
-                      <li
-                        key={skill.id}
-                        className="inline-flex min-w-0 max-w-full items-center gap-2 rounded-lg border border-border/70 bg-background/40 px-2.5 py-1.5 text-sm transition-colors duration-200 hover:border-primary/40"
-                      >
-                        <StackIcon
-                          name={skill.name}
-                          icon={skill.icon}
-                          className="size-4 shrink-0"
+        <Reveal delay={0.1}>
+          <div className="mt-8 columns-1 gap-5 md:columns-2">
+            <AnimatePresence mode="popLayout" initial={false}>
+              {visible.map(([category, items]) => {
+                const Icon = categoryIcon(category);
+                return (
+                  <motion.div
+                    key={category}
+                    layout
+                    initial={{ opacity: 0, y: 16, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.96 }}
+                    transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+                    className="mb-5 break-inside-avoid"
+                  >
+                    <div className="sheen group/card relative rounded-2xl border border-border/60 bg-card/60 backdrop-blur transition-all duration-300 hover:border-primary/40 hover:shadow-xl hover:shadow-primary/[0.07]">
+                      {/* glow wash — fades in with the card's hover state */}
+                      <div
+                        aria-hidden
+                        className="pointer-events-none absolute -right-20 -top-20 h-44 w-44 rounded-full bg-primary/10 opacity-0 blur-3xl transition-opacity duration-500 group-hover/card:opacity-100"
+                      />
+                      <div className="relative p-6">
+                        <div className="flex items-center gap-3">
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary transition-transform duration-300 group-hover/card:rotate-3 group-hover/card:scale-105">
+                            <Icon className="size-4.5" aria-hidden />
+                          </span>
+                          <h3 className="min-w-0 break-all font-mono text-xs font-semibold uppercase tracking-[0.2em] text-primary">
+                            {category}
+                          </h3>
+                          <span className="ml-auto shrink-0 rounded-full bg-muted px-2.5 py-1 font-mono text-[11px] tabular-nums text-muted-foreground">
+                            {items.length} skills
+                          </span>
+                        </div>
+                        <div
+                          aria-hidden
+                          className="mt-4 h-px bg-gradient-to-r from-border/80 via-border/40 to-transparent"
                         />
-                        <span className="min-w-0 break-all">{skill.name}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </motion.div>
-            ))}
-          </AnimatePresence>
-        </div>
+                        {/* Chip cloud — the stack speaks for itself; no invented metrics. */}
+                        <ul className="mt-4 flex flex-wrap gap-2">
+                          {items.map((skill) => (
+                            <li
+                              key={skill.id}
+                              className="inline-flex min-w-0 max-w-full items-center gap-2 rounded-lg border border-border/70 bg-background/40 px-2.5 py-1.5 text-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/50 hover:bg-primary/[0.06]"
+                            >
+                              <StackIcon
+                                name={skill.name}
+                                icon={skill.icon}
+                                className="size-4 shrink-0"
+                              />
+                              <span className="min-w-0 break-all">{skill.name}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
+          </div>
+        </Reveal>
       </div>
     </section>
   );
