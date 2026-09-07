@@ -80,13 +80,7 @@ export default function Portfolio({ onOpenAdmin }: { onOpenAdmin: () => void }) 
       <main className="flex-1">
         <Hero profile={profile} totalCommits={totalCommits} repoCount={data.repos.length} />
         <StackMarquee skills={data.skills} />
-        <About
-          profile={profile}
-          knowledge={data.knowledge}
-          skillCount={data.skills.length}
-          repoCount={data.repos.length}
-          totalCommits={totalCommits}
-        />
+        <About profile={profile} knowledge={data.knowledge} />
         <Skills skills={data.skills} />
         <Experience experiences={data.experiences} />
         <Repos repos={data.repos} />

@@ -200,16 +200,8 @@ export default function Hero({
             <RotatingWords words={profile.rotatingWords} />
           </motion.div>
 
-          {profile.bio ? (
-            <motion.p
-              initial={{ opacity: 0, y: 18 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.68, duration: 0.6 }}
-              className="mt-6 max-w-xl break-words leading-relaxed text-muted-foreground"
-            >
-              {profile.bio}
-            </motion.p>
-          ) : null}
+          {/* Bio intentionally lives once, in the About section ("01 — about")
+              — repeating it here duplicated a full paragraph one screen later. */}
 
           <motion.div
             initial={{ opacity: 0, y: 18 }}

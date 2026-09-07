@@ -19,7 +19,6 @@ import {
   Wrench,
   type LucideIcon,
 } from "lucide-react";
-import Counter from "@/components/motion/Counter";
 import Reveal from "@/components/motion/Reveal";
 import Tilt from "@/components/motion/Tilt";
 import SectionHeading from "@/components/sections/SectionHeading";
@@ -48,23 +47,10 @@ const KNOWLEDGE_ICONS: Record<string, LucideIcon> = {
 export default function About({
   profile,
   knowledge,
-  skillCount,
-  repoCount,
-  totalCommits,
 }: {
   profile: ProfileData;
   knowledge: KnowledgeData[];
-  skillCount: number;
-  repoCount: number;
-  totalCommits: number;
 }) {
-  const stats = [
-    { value: profile.yearsExperience, suffix: "+", label: "Years experience" },
-    { value: totalCommits, suffix: "", label: "Commits (12 mo)" },
-    { value: skillCount, suffix: "", label: "Technologies" },
-    { value: repoCount, suffix: "", label: "Featured repos" },
-  ];
-
   return (
     <section id="about" className="relative py-24 sm:py-28" aria-label="About and knowledge">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
@@ -74,22 +60,10 @@ export default function About({
           description="A quick snapshot of the craft behind the commits."
         />
 
-        <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {stats.map((stat, i) => (
-            <Reveal key={stat.label} delay={i * 0.08}>
-              <div className="sheen group rounded-2xl border border-border/60 bg-card/60 p-5 backdrop-blur transition-colors duration-300 hover:border-primary/40">
-                <p className="text-3xl font-bold tabular-nums sm:text-4xl">
-                  <Counter value={stat.value} />
-                  <span className="text-primary">{stat.suffix}</span>
-                </p>
-                <p className="mt-1.5 text-sm text-muted-foreground">{stat.label}</p>
-              </div>
-            </Reveal>
-          ))}
-        </div>
-
+        {/* Stats deliberately live only in the hero — this section is the
+            narrative (bio + knowledge), not a second copy of the counters. */}
         {profile.bio ? (
-          <Reveal delay={0.1} className="mt-14 max-w-3xl">
+          <Reveal delay={0.1} className="mt-12 max-w-3xl">
             <div className="space-y-4">
               {profile.bio
                 .split(/\n{2,}|\r\n{2,}/)
