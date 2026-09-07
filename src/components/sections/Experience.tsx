@@ -71,11 +71,13 @@ export default function Experience({ experiences }: { experiences: ExperienceDat
           description="Roles that shaped how I design, build and ship software."
         />
 
-        <div ref={lineRef} className="relative mt-14 pl-8 sm:pl-12">
-          {/* rail */}
-          <div className="absolute bottom-2 left-[7px] top-2 w-px bg-border" aria-hidden />
+        <div ref={lineRef} className="relative z-20 mt-14 pl-8 sm:pl-12">
+          {/* rail — 2px @ ~15% white so it survives fractional zoom / low DPR
+              (1px @ 9% --border was invisible on mobile); z-20 keeps it above
+              the fixed LiveBackground canvas that paints over page content. */}
+          <div className="absolute bottom-2 left-[7px] top-2 w-0.5 bg-foreground/15" aria-hidden />
           <motion.div
-            className="absolute bottom-2 left-[7px] top-2 w-px origin-top bg-primary"
+            className="absolute bottom-2 left-[7px] top-2 w-0.5 origin-top bg-primary"
             style={{ scaleY: progress }}
             aria-hidden
           />
@@ -173,17 +175,18 @@ function TimelineDot({
   return (
     <span
       data-timeline-dot
-      className="absolute -left-8 top-2 flex h-[15px] w-[15px] items-center justify-center sm:-left-12"
+      className="absolute -left-8 top-2 flex h-4 w-4 items-center justify-center sm:-left-12"
       aria-hidden
     >
-      {/* unlit base dot */}
-      <span className="h-[11px] w-[11px] rounded-full border-2 border-border bg-background" />
+      {/* unlit base dot — ring at 25% so the waypoints stay findable when
+          the rail hasn't reached them yet (9% border vanished on mobile) */}
+      <span className="h-3 w-3 rounded-full border-2 border-foreground/25 bg-background" />
       {/* lit dot — appears the moment the line reaches this dot */}
       <motion.span
         style={{ opacity: litOpacity }}
         className={`absolute inset-0 flex items-center justify-center ${current ? "animate-pulse-ring" : ""}`}
       >
-        <span className="h-[11px] w-[11px] rounded-full border-2 border-primary bg-primary" />
+        <span className="h-3 w-3 rounded-full border-2 border-primary bg-primary" />
       </motion.span>
     </span>
   );
