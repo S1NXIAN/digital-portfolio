@@ -425,7 +425,7 @@ export default function ContributionsManager() {
           Overwrite a day&apos;s total or stack extra commits on top of the synced count.
         </p>
         <form onSubmit={handleUpsert} className="mt-4 space-y-4" noValidate>
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Field label="Date" htmlFor="contrib-date">
               <Input
                 id="contrib-date"

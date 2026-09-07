@@ -120,7 +120,7 @@ export default function OverviewTab({ onNavigate }: { onNavigate: (tab: string) 
   return (
     <div className="space-y-5">
       {/* Content stats */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {stats.map((s) => (
           <button
             key={s.label}
@@ -144,7 +144,7 @@ export default function OverviewTab({ onNavigate }: { onNavigate: (tab: string) 
         ))}
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         {/* Profile completeness */}
         <section className="rounded-xl border border-border bg-card p-5">
           <div className="flex items-center justify-between gap-3">
@@ -292,12 +292,12 @@ function HealthItem({
 function OverviewSkeleton() {
   return (
     <div className="space-y-5" aria-busy="true" aria-live="polite">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <Skeleton key={i} className="h-[95px] rounded-xl" />
         ))}
       </div>
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <Skeleton className="h-48 rounded-xl" />
         <Skeleton className="h-48 rounded-xl" />
       </div>

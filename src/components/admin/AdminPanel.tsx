@@ -51,7 +51,7 @@ export const ADMIN_TABS: TabDef[] = [
     icon: Gauge,
   },
   { value: "profile", label: "Profile", description: "Identity, bio, socials and photo", icon: User },
-  { value: "skills", label: "Skills", description: "Powers the stack marquee and skill bars", icon: Zap },
+  { value: "skills", label: "Skills", description: "Powers the stack marquee and stack categories", icon: Zap },
   {
     value: "experiences",
     label: "Experience",

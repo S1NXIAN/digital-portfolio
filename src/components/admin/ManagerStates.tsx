@@ -29,7 +29,7 @@ import {
 /** Three skeleton cards shown while an entity list is loading. */
 export function ManagerLoading({ count = 3 }: { count?: number }) {
   return (
-    <div className="grid gap-4 md:grid-cols-2" aria-busy="true" aria-live="polite">
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2" aria-busy="true" aria-live="polite">
       {Array.from({ length: count }).map((_, i) => (
         <div key={i} className="rounded-xl border border-border bg-card p-6">
           <Skeleton className="h-5 w-1/3" />

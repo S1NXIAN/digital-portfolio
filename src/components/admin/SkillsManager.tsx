@@ -24,8 +24,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
 import { api } from "./lib";
 import {
   CategorySelect,
@@ -55,7 +53,6 @@ export default function SkillsManager() {
   const [editing, setEditing] = useState<SkillData | null>(null);
   const [name, setName] = useState("");
   const [category, setCategory] = useState("Languages");
-  const [level, setLevel] = useState(80);
   const [icon, setIcon] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
   const [error, setError] = useState("");
@@ -101,7 +98,6 @@ export default function SkillsManager() {
     setEditing(null);
     setName("");
     setCategory(categoryFilter || "Languages");
-    setLevel(80);
     setIcon("");
     setError("");
     setOpen(true);
@@ -111,7 +107,6 @@ export default function SkillsManager() {
     setEditing(skill);
     setName(skill.name);
     setCategory(skill.category);
-    setLevel(skill.level);
     setIcon(skill.icon ?? "");
     setError("");
     setOpen(true);
@@ -155,7 +150,6 @@ export default function SkillsManager() {
     save.mutate({
       name: name.trim(),
       category: category.trim(),
-      level: Math.round(level),
       icon: icon.trim(),
     });
   };
@@ -206,7 +200,7 @@ export default function SkillsManager() {
           }
         />
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {reveal.visible.map((skill) => (
             <div
               key={skill.id}
@@ -221,12 +215,9 @@ export default function SkillsManager() {
                   />
                   <div className="min-w-0">
                     <h3 className="truncate text-sm font-semibold">{skill.name}</h3>
-                    <div className="mt-1.5 flex items-center gap-2">
-                      <Badge variant="secondary">{skill.category}</Badge>
-                      <span className="text-xs text-muted-foreground tabular-nums">
-                        {skill.level}%
-                      </span>
-                    </div>
+                    <Badge variant="secondary" className="mt-1.5">
+                      {skill.category}
+                    </Badge>
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
@@ -246,17 +237,6 @@ export default function SkillsManager() {
                   />
                 </div>
               </div>
-              <div className="mt-3 flex items-center gap-3">
-                <div className="h-1.5 flex-1 overflow-hidden rounded bg-muted">
-                  <div
-                    className="h-full rounded bg-primary transition-all"
-                    style={{ width: `${Math.max(0, Math.min(100, skill.level))}%` }}
-                  />
-                </div>
-                <span className="w-9 text-right text-xs font-medium tabular-nums text-muted-foreground">
-                  {skill.level}%
-                </span>
-              </div>
             </div>
           ))}
         </div>
@@ -275,8 +255,8 @@ export default function SkillsManager() {
           <DialogHeader>
             <DialogTitle>{editing ? "Edit skill" : "Add skill"}</DialogTitle>
             <DialogDescription>
-              Skills power the stack marquee and the animated bars in the Skills
-              section.
+              Skills power the stack marquee and the category groups in the
+              Skills section.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4" noValidate>
@@ -377,22 +357,6 @@ export default function SkillsManager() {
               </div>
             </Field>
 
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="skill-level">Level</Label>
-                <Badge variant="secondary" className="tabular-nums">
-                  {Math.round(level)}%
-                </Badge>
-              </div>
-              <Slider
-                id="skill-level"
-                min={0}
-                max={100}
-                step={1}
-                value={[level]}
-                onValueChange={(v) => setLevel(v[0] ?? 0)}
-              />
-            </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                 Cancel

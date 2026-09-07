@@ -74,7 +74,7 @@ export default function About({
           description="A quick snapshot of the craft behind the commits."
         />
 
-        <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {stats.map((stat, i) => (
             <Reveal key={stat.label} delay={i * 0.08}>
               <div className="sheen group rounded-2xl border border-border/60 bg-card/60 p-5 backdrop-blur transition-colors duration-300 hover:border-primary/40">
@@ -117,7 +117,7 @@ export default function About({
                 Areas of knowledge
               </h3>
             </Reveal>
-            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {knowledge.map((item, i) => {
                 const Icon = KNOWLEDGE_ICONS[item.icon] ?? Sparkles;
                 return (

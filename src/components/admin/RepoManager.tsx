@@ -601,7 +601,7 @@ export default function RepoManager() {
                 </Button>
               </div>
             </Field>
-            <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_auto]">
               <Field label="Name" htmlFor="repo-name" error={error && !name.trim() ? error : undefined}>
                 <Input
                   id="repo-name"
@@ -634,7 +634,7 @@ export default function RepoManager() {
                 maxLength={LIMITS.repoDescription}
               />
             </Field>
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <Field label="Language" htmlFor="repo-language">
                 <Input
                   id="repo-language"

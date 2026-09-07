@@ -7,9 +7,6 @@ import SectionHeading from "@/components/sections/SectionHeading";
 import StackIcon from "@/components/StackIcon";
 import type { SkillData } from "@/types/portfolio";
 
-/** Categories with more than this many skills render in a denser 2-column grid. */
-const COMPACT_THRESHOLD = 8;
-
 export default function Skills({ skills }: { skills: SkillData[] }) {
   const [activeCategory, setActiveCategory] = useState<string>("all");
 
@@ -36,17 +33,6 @@ export default function Skills({ skills }: { skills: SkillData[] }) {
     [categories, activeCategory]
   );
 
-  const summary = useMemo(() => {
-    const pool =
-      activeCategory === "all"
-        ? skills
-        : categories.find(([c]) => c === activeCategory)?.[1] ?? [];
-    const avg = pool.length
-      ? Math.round(pool.reduce((sum, s) => sum + s.level, 0) / pool.length)
-      : 0;
-    return { count: pool.length, avg };
-  }, [skills, categories, activeCategory]);
-
   if (skills.length === 0) return null;
 
   return (
@@ -55,7 +41,7 @@ export default function Skills({ skills }: { skills: SkillData[] }) {
         <SectionHeading
           eyebrow="02 — stack"
           title="Tools of the trade"
-          description="Depth where it matters, breadth where it helps — proficiency is honest, not aspirational."
+          description="The languages, frameworks and tooling that show up in my shipped work."
         />
 
         {/* Category filter chips */}
@@ -76,11 +62,6 @@ export default function Skills({ skills }: { skills: SkillData[] }) {
                 onClick={() => setActiveCategory(category)}
               />
             ))}
-            <span className="ml-auto hidden items-center gap-2 text-xs text-muted-foreground sm:flex">
-              <span className="font-mono tabular-nums">{summary.count} skills</span>
-              <span aria-hidden>·</span>
-              <span className="font-mono tabular-nums">avg {summary.avg}%</span>
-            </span>
           </div>
         </Reveal>
 
@@ -91,73 +72,44 @@ export default function Skills({ skills }: { skills: SkillData[] }) {
         */}
         <div className="mt-8 columns-1 gap-5 md:columns-2">
           <AnimatePresence mode="popLayout" initial={false}>
-            {visible.map(([category, items], gi) => {
-              const compact = items.length > COMPACT_THRESHOLD;
-              return (
-                <motion.div
-                  key={category}
-                  layout
-                  initial={{ opacity: 0, y: 16, scale: 0.98 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.96 }}
-                  transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
-                  className="mb-5 break-inside-avoid"
-                >
-                  <div className="@container rounded-2xl border border-border/60 bg-card/60 p-6 backdrop-blur transition-colors duration-300 hover:border-primary/30">
-                    <div className="flex items-center justify-between gap-2">
-                      <h3 className="break-all font-mono text-xs font-semibold uppercase tracking-[0.2em] text-primary">
-                        {category}
-                      </h3>
-                      <span className="shrink-0 rounded-full bg-muted px-2.5 py-0.5 text-[11px] text-muted-foreground">
-                        {items.length} skills
-                      </span>
-                    </div>
-                    <ul
-                      className={
-                        compact
-                          ? "mt-4 grid grid-cols-1 gap-x-8 gap-y-4 @md:grid-cols-2"
-                          : "mt-5 space-y-4"
-                      }
-                    >
-                      {items.map((skill, i) => (
-                        <li key={skill.id}>
-                          <div className="flex items-baseline justify-between gap-3">
-                            <span className="flex min-w-0 items-center gap-2 text-sm font-medium">
-                              <StackIcon
-                                name={skill.name}
-                                icon={skill.icon}
-                                className="size-4 shrink-0"
-                              />
-                              <span className="min-w-0 break-all">{skill.name}</span>
-                            </span>
-                            <span className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground">
-                              {skill.level}%
-                            </span>
-                          </div>
-                          <div
-                            className={`mt-1.5 overflow-hidden rounded-full bg-muted ${
-                              compact ? "h-1" : "h-1.5"
-                            }`}
-                          >
-                            <motion.div
-                              className="h-full rounded-full bg-gradient-to-r from-primary/60 to-primary"
-                              initial={{ width: 0 }}
-                              whileInView={{ width: `${skill.level}%` }}
-                              viewport={{ once: true, margin: "-40px" }}
-                              transition={{
-                                duration: 1.1,
-                                delay: Math.min(0.15 + i * 0.07, 0.9),
-                                ease: [0.22, 1, 0.36, 1],
-                              }}
-                            />
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
+            {visible.map(([category, items]) => (
+              <motion.div
+                key={category}
+                layout
+                initial={{ opacity: 0, y: 16, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.96 }}
+                transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+                className="mb-5 break-inside-avoid"
+              >
+                <div className="rounded-2xl border border-border/60 bg-card/60 p-6 backdrop-blur transition-colors duration-300 hover:border-primary/30">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="break-all font-mono text-xs font-semibold uppercase tracking-[0.2em] text-primary">
+                      {category}
+                    </h3>
+                    <span className="shrink-0 rounded-full bg-muted px-2.5 py-0.5 text-[11px] text-muted-foreground">
+                      {items.length} skills
+                    </span>
                   </div>
-                </motion.div>
-              );
-            })}
+                  {/* Chip cloud — the stack speaks for itself; no invented metrics. */}
+                  <ul className="mt-4 flex flex-wrap gap-2">
+                    {items.map((skill) => (
+                      <li
+                        key={skill.id}
+                        className="inline-flex min-w-0 max-w-full items-center gap-2 rounded-lg border border-border/70 bg-background/40 px-2.5 py-1.5 text-sm transition-colors duration-200 hover:border-primary/40"
+                      >
+                        <StackIcon
+                          name={skill.name}
+                          icon={skill.icon}
+                          className="size-4 shrink-0"
+                        />
+                        <span className="min-w-0 break-all">{skill.name}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </motion.div>
+            ))}
           </AnimatePresence>
         </div>
       </div>

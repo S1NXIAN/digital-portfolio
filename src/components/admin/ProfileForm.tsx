@@ -106,7 +106,7 @@ export default function ProfileForm() {
     return (
       <div className="space-y-4" aria-busy="true" aria-live="polite">
         <Skeleton className="h-36 w-full rounded-xl" />
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <Skeleton className="h-64 w-full rounded-xl" />
           <Skeleton className="h-64 w-full rounded-xl" />
         </div>
@@ -329,7 +329,7 @@ function ProfileEditor({ profile }: { profile: ProfileData }) {
           <UserRound className="size-4 text-primary" aria-hidden />
           <h2 className="text-sm font-semibold">Basics</h2>
         </div>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Name" htmlFor="pf-name" error={errors.name}>
             <Input
               id="pf-name"

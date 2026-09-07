@@ -56,49 +56,48 @@ export const SEED_PROFILE = {
 export const SEED_SKILLS: {
   name: string;
   category: string;
-  level: number;
   order: number;
   icon?: string;
 }[] = [
   // AI & LLM — the core of how I work
-  { name: "Prompt Engineering", category: "AI & LLM", level: 95, order: 0 },
-  { name: "Context Engineering", category: "AI & LLM", level: 92, order: 1 },
-  { name: "Structured Outputs", category: "AI & LLM", level: 88, order: 2 },
-  { name: "RAG Pipelines", category: "AI & LLM", level: 86, order: 3 },
-  { name: "AI Agents", category: "AI & LLM", level: 84, order: 4 },
+  { name: "Prompt Engineering", category: "AI & LLM", order: 0 },
+  { name: "Context Engineering", category: "AI & LLM", order: 1 },
+  { name: "Structured Outputs", category: "AI & LLM", order: 2 },
+  { name: "RAG Pipelines", category: "AI & LLM", order: 3 },
+  { name: "AI Agents", category: "AI & LLM", order: 4 },
 
   // Design & Motion — the obsession
-  { name: "Micro-interactions", category: "Design & Motion", level: 96, order: 0 },
-  { name: "Tailwind CSS", category: "Design & Motion", level: 92, order: 1, icon: "tailwindcss" },
-  { name: "Framer Motion", category: "Design & Motion", level: 90, order: 2, icon: "framermotion" },
-  { name: "Figma", category: "Design & Motion", level: 76, order: 3, icon: "figma" },
+  { name: "Micro-interactions", category: "Design & Motion", order: 0 },
+  { name: "Tailwind CSS", category: "Design & Motion", order: 1, icon: "tailwindcss" },
+  { name: "Framer Motion", category: "Design & Motion", order: 2, icon: "framermotion" },
+  { name: "Figma", category: "Design & Motion", order: 3, icon: "figma" },
 
   // Frontend
-  { name: "Next.js", category: "Frontend", level: 90, order: 0, icon: "nextjs" },
-  { name: "React", category: "Frontend", level: 88, order: 1, icon: "react" },
-  { name: "shadcn/ui", category: "Frontend", level: 90, order: 2 },
-  { name: "TanStack Query", category: "Frontend", level: 85, order: 3 },
-  { name: "Zustand", category: "Frontend", level: 84, order: 4 },
+  { name: "Next.js", category: "Frontend", order: 0, icon: "nextjs" },
+  { name: "React", category: "Frontend", order: 1, icon: "react" },
+  { name: "shadcn/ui", category: "Frontend", order: 2 },
+  { name: "TanStack Query", category: "Frontend", order: 3 },
+  { name: "Zustand", category: "Frontend", order: 4 },
 
   // Languages
-  { name: "TypeScript", category: "Languages", level: 92, order: 0, icon: "typescript" },
-  { name: "Python", category: "Languages", level: 84, order: 1, icon: "python" },
-  { name: "SQL", category: "Languages", level: 72, order: 2 },
-  { name: "Bash", category: "Languages", level: 70, order: 3 },
+  { name: "TypeScript", category: "Languages", order: 0, icon: "typescript" },
+  { name: "Python", category: "Languages", order: 1, icon: "python" },
+  { name: "SQL", category: "Languages", order: 2 },
+  { name: "Bash", category: "Languages", order: 3 },
 
   // LLM APIs — the daily drivers
-  { name: "OpenAI API", category: "LLM APIs", level: 90, order: 0, icon: "openai" },
-  { name: "Anthropic Claude", category: "LLM APIs", level: 90, order: 1, icon: "anthropic" },
-  { name: "Google Gemini", category: "LLM APIs", level: 84, order: 2, icon: "googlegemini" },
-  { name: "Ollama", category: "LLM APIs", level: 78, order: 3, icon: "ollama" },
-  { name: "LangChain", category: "LLM APIs", level: 76, order: 4, icon: "langchain" },
+  { name: "OpenAI API", category: "LLM APIs", order: 0, icon: "openai" },
+  { name: "Anthropic Claude", category: "LLM APIs", order: 1, icon: "anthropic" },
+  { name: "Google Gemini", category: "LLM APIs", order: 2, icon: "googlegemini" },
+  { name: "Ollama", category: "LLM APIs", order: 3, icon: "ollama" },
+  { name: "LangChain", category: "LLM APIs", order: 4, icon: "langchain" },
 
   // Workflow — Git & Docker keep it honest
-  { name: "Git", category: "Workflow", level: 88, order: 0, icon: "git" },
-  { name: "Docker", category: "Workflow", level: 80, order: 1, icon: "docker" },
-  { name: "Vercel", category: "Workflow", level: 86, order: 2, icon: "vercel" },
-  { name: "GitHub Actions", category: "Workflow", level: 78, order: 3, icon: "githubactions" },
-  { name: "Linux", category: "Workflow", level: 74, order: 4, icon: "linux" },
+  { name: "Git", category: "Workflow", order: 0, icon: "git" },
+  { name: "Docker", category: "Workflow", order: 1, icon: "docker" },
+  { name: "Vercel", category: "Workflow", order: 2, icon: "vercel" },
+  { name: "GitHub Actions", category: "Workflow", order: 3, icon: "githubactions" },
+  { name: "Linux", category: "Workflow", order: 4, icon: "linux" },
 ];
 
 /** Career timeline = school projects for now (student first, freelancer on the side). */
@@ -350,10 +349,9 @@ export async function seedDatabase(db: PrismaClient) {
   });
 
   // ---- Skills ----
-  const skills = SEED_SKILLS.map(({ name, category, level, order, icon }) => ({
+  const skills = SEED_SKILLS.map(({ name, category, order, icon }) => ({
     name,
     category,
-    level,
     order,
     icon: icon ?? "",
   }));

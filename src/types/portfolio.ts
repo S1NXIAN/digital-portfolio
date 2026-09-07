@@ -28,7 +28,6 @@ export interface SkillData {
   id: string;
   name: string;
   category: string;
-  level: number;
   order: number;
   /** "" = auto-match from name · "https://…" = custom URL · otherwise a dashboardicons.com slug */
   icon: string;

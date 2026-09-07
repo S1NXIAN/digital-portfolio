@@ -17,7 +17,6 @@ type LooseDelegate = {
 const skillSchema = z.object({
   name: z.string().min(1, "Skill name is required").max(LIMITS.skillName),
   category: z.string().min(1, "Category is required").max(LIMITS.skillCategory),
-  level: z.coerce.number().int().min(0).max(100).default(80),
   order: z.coerce.number().int().default(0),
   icon: skillIconSchema,
 });

@@ -17,7 +17,6 @@ const entities = {
   skills: { delegate: "skill" as const, schema: z.object({
     name: z.string().min(1).max(LIMITS.skillName).optional(),
     category: z.string().min(1).max(LIMITS.skillCategory).optional(),
-    level: z.coerce.number().int().min(0).max(100).optional(),
     order: z.coerce.number().int().optional(),
     icon: skillIconSchema.optional(),
   }) },

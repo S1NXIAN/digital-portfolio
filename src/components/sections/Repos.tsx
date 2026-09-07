@@ -79,7 +79,7 @@ export default function Repos({ repos }: { repos: RepoData[] }) {
           </Reveal>
         ) : null}
 
-        <div className="mt-8 grid gap-5 sm:grid-cols-2">
+        <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2">
           <AnimatePresence mode="popLayout" initial={false}>
             {visible.map((repo, i) => (
               <motion.div
